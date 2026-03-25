@@ -1,4 +1,7 @@
-"""Jinja2 HTML 报告渲染。"""
+"""Jinja2 HTML 报告渲染。
+
+v3.0: 支持卖出时机建议 + 市场情绪 + 概率预测 + 中签率估算。
+"""
 from __future__ import annotations
 
 import base64
@@ -53,6 +56,18 @@ def _rating_class(rating: str) -> str:
     }.get(rating, "neutral")
 
 
+def _confidence_label(conf: str) -> str:
+    return {"high": "高", "medium": "中", "low": "低"}.get(conf, conf)
+
+
+def _strategy_label(strat: str) -> str:
+    return {
+        "quick_flip": "⚡ 速战速决",
+        "short_hold": "📈 短线持有",
+        "medium_hold": "🏦 中线持有",
+    }.get(strat, strat)
+
+
 def generate_html_report(report: FinalReport,
                          output_dir: Path,
                          radar_png_path: Optional[Path] = None) -> Path:
@@ -74,6 +89,47 @@ def generate_html_report(report: FinalReport,
         ds._color = _score_color(ds.score)
         ds._bar_class = _bar_class(ds.score)
 
+    # 卖出时机建议（如果有）
+    sell_timing_data = None
+    if report.sell_timing:
+        st = report.sell_timing
+        sell_timing_data = {
+            "strategy": _strategy_label(st.strategy),
+            "suggested_days": st.suggested_days,
+            "rationale": st.rationale,
+            "stop_loss_pct": st.stop_loss_pct,
+            "take_profit_pct": st.take_profit_pct,
+            "confidence": _confidence_label(st.confidence),
+        }
+
+    # 概率预测区间（P3 新增）
+    probability_data = None
+    if report.probability:
+        p = report.probability
+        probability_data = {
+            "first_day_up_prob": p.first_day_up_prob,
+            "first_day_down_prob": p.first_day_down_prob,
+            "expected_return_low": p.expected_return_low,
+            "expected_return_mid": p.expected_return_mid,
+            "expected_return_high": p.expected_return_high,
+            "confidence_level": _confidence_label(p.confidence_level),
+            "methodology": p.methodology,
+        }
+
+    # 中签率估算（P3 新增）
+    allotment_data = None
+    if report.allotment:
+        a = report.allotment
+        allotment_data = {
+            "estimated_allocation_rate": a.estimated_allocation_rate,
+            "estimated_one_hand_win_rate": a.estimated_one_hand_win_rate,
+            "optimal_hands": a.optimal_hands,
+            "expected_profit_per_hand": a.expected_profit_per_hand,
+            "capital_required": a.capital_required,
+            "capital_efficiency": a.capital_efficiency,
+            "methodology": a.methodology,
+        }
+
     # 渲染
     html = template.render(
         report=report,
@@ -82,6 +138,9 @@ def generate_html_report(report: FinalReport,
         radar_base64=radar_base64,
         dimension_scores_sorted=dim_sorted,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        sell_timing=sell_timing_data,
+        probability=probability_data,
+        allotment=allotment_data,
     )
 
     # 保存

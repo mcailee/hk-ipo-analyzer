@@ -136,6 +136,61 @@ def print_report(report: FinalReport):
             border_style="cyan",
         ))
 
+    # ── 卖出时机建议 ──
+    if report.sell_timing:
+        st = report.sell_timing
+        strat_labels = {
+            "quick_flip": "⚡ 速战速决",
+            "short_hold": "📈 短线持有",
+            "medium_hold": "🏦 中线持有",
+        }
+        conf_labels = {"high": "高", "medium": "中", "low": "低"}
+        timing_text = (
+            f"  策略: [bold cyan]{strat_labels.get(st.strategy, st.strategy)}[/bold cyan]\n"
+            f"  建议持有: ≤{st.suggested_days}天\n"
+            f"  止损线: [red]{st.stop_loss_pct}%[/red]  止盈目标: [green]+{st.take_profit_pct}%[/green]\n"
+            f"  逻辑: {st.rationale}\n"
+            f"  置信度: {conf_labels.get(st.confidence, st.confidence)}"
+        )
+        console.print(Panel(timing_text, title="💡 卖出时机建议", border_style="cyan"))
+
+    # ── 概率预测区间（P3 新增）──
+    if report.probability:
+        prob = report.probability
+        conf_labels = {"high": "高", "medium": "中", "low": "低"}
+        prob_text = (
+            f"  首日上涨概率: [bold green]{prob.first_day_up_prob:.1f}%[/bold green]"
+            f"  首日下跌概率: [bold red]{prob.first_day_down_prob:.1f}%[/bold red]\n"
+            f"  预期收益区间: [red]{prob.expected_return_low:+.1f}%[/red]"
+            f" ~ [bold]{prob.expected_return_mid:+.1f}%[/bold]"
+            f" ~ [green]{prob.expected_return_high:+.1f}%[/green]\n"
+            f"  置信度: {conf_labels.get(prob.confidence_level, prob.confidence_level)}\n"
+            f"  方法: {prob.methodology}"
+        )
+        console.print(Panel(prob_text, title="🎲 概率预测区间", border_style="magenta"))
+
+    # ── 中签率估算（P3 新增）──
+    if report.allotment:
+        allot = report.allotment
+        allot_parts = []
+        if allot.estimated_allocation_rate is not None:
+            allot_parts.append(f"  估算中签率: [bold]{allot.estimated_allocation_rate:.2f}%[/bold]")
+        if allot.estimated_one_hand_win_rate is not None:
+            allot_parts.append(f"  一手中签率: [bold cyan]{allot.estimated_one_hand_win_rate:.1f}%[/bold cyan]")
+        if allot.optimal_hands is not None:
+            allot_parts.append(f"  建议认购: [bold]{allot.optimal_hands} 手[/bold]")
+        if allot.expected_profit_per_hand is not None:
+            color = "green" if allot.expected_profit_per_hand > 0 else "red"
+            allot_parts.append(f"  每手预期盈利: [{color}]HK${allot.expected_profit_per_hand:,.0f}[/{color}]")
+        if allot.capital_required is not None:
+            allot_parts.append(f"  所需本金: HK${allot.capital_required:,.0f}")
+        if allot.capital_efficiency is not None:
+            allot_parts.append(f"  资金效率(年化): {allot.capital_efficiency:.1f}%")
+        if allot.methodology:
+            allot_parts.append(f"  [dim]{allot.methodology}[/dim]")
+        if allot_parts:
+            console.print(Panel("\n".join(allot_parts), title="🎯 中签率估算", border_style="yellow"))
+
     # ── 摘要 ──
     console.print(Panel(report.summary, title="📝 分析摘要", border_style="blue"))
     console.rule(style="dim")

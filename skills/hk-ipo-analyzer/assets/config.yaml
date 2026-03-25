@@ -1,32 +1,38 @@
 # ============================================================
 # 港股 IPO 打新分析助手 - 全局配置
+# 优化版 v2.0 — 基于回测数据实证校准
 # ============================================================
 
-# 11 大分析维度及权重
+# 15 大分析维度及权重（v3.0 扩展 — 含 P2/P3 新增维度）
+# 注意：新增维度为条件性参与加权（有数据时参与，无数据时 weight=0）
 dimensions:
   valuation:
     name: "估值定价"
-    weight: 0.18
+    weight: 0.15
     phase: 1
   subscription:
     name: "市场认购热度"
-    weight: 0.15
+    weight: 0.16
     phase: 2
   financial:
     name: "财务状况"
-    weight: 0.14
+    weight: 0.12
     phase: 1
   industry:
     name: "行业竞争"
-    weight: 0.10
+    weight: 0.12
     phase: 1
   cornerstone:
     name: "基石投资者"
     weight: 0.10
     phase: 1
+  market_sentiment:
+    name: "市场情绪"
+    weight: 0.09
+    phase: 1
   company:
     name: "公司基本面"
-    weight: 0.08
+    weight: 0.06
     phase: 1
   underwriting:
     name: "承销发行"
@@ -38,16 +44,32 @@ dimensions:
     phase: 2
   greenshoe:
     name: "绿鞋机制"
-    weight: 0.05
+    weight: 0.03
     phase: 1
   shareholder:
     name: "股东构成"
-    weight: 0.03
+    weight: 0.01
     phase: 1
   legal:
     name: "法律诉讼"
-    weight: 0.02
+    weight: 0.01
     phase: 1
+  # ── P2/P3 新增维度（条件性加权）──
+  peer_comparison:
+    name: "同批次对比"
+    weight: 0.05
+    phase: 2
+    conditional: true   # 有数据时才参与加权
+  ah_stock:
+    name: "A+H股分析"
+    weight: 0.04
+    phase: 1
+    conditional: true
+  grey_market:
+    name: "暗盘数据"
+    weight: 0.06
+    phase: 2
+    conditional: true
 
 # 四级评级阈值
 rating:
@@ -168,18 +190,149 @@ financial_scoring:
     - [5, 10, 50]
     - [-100, 5, 30]
 
-# 认购热度评分区间
+# 认购热度评分 — 对数化评分（不再使用线性区间）
 subscription_scoring:
-  public_mult:  # 公开认购倍数
-    - [500, 9999, 95]
-    - [100, 500, 85]
-    - [30, 100, 70]
-    - [10, 30, 55]
-    - [1, 10, 40]
-    - [0, 1, 15]
-  intl_mult:  # 国际配售倍数
+  # 公开认购倍数：对数化参数
+  public_mult_log:
+    # score = min(98, base + slope * ln(mult))
+    base: 20        # 基础分（1倍时约得此分）
+    slope: 10.5     # 每个自然对数单位提升分数
+    max_score: 98   # 上限
+    min_score: 10   # 下限（<1倍时）
+  # 国际配售倍数（仍用区间，范围较小）
+  intl_mult:
     - [20, 999, 90]
     - [10, 20, 80]
     - [5, 10, 65]
     - [2, 5, 50]
     - [0, 2, 30]
+  # 机制B 专属评分参数
+  mech_b:
+    price_vs_range:  # 最终定价相对指示区间位置 (0-1)
+      - [0, 0.3, 85]
+      - [0.3, 0.6, 70]
+      - [0.6, 0.85, 50]
+      - [0.85, 1.0, 30]
+    institutional_orders:  # 机构下单倍数
+      - [10, 999, 95]
+      - [5, 10, 80]
+      - [2, 5, 65]
+      - [1, 2, 50]
+      - [0, 1, 25]
+
+# 市场情绪评分区间（新增维度）
+sentiment_scoring:
+  hsi_1m_change:  # 恒指近1月涨跌幅 (%)
+    - [5, 100, 85]
+    - [2, 5, 75]
+    - [0, 2, 60]
+    - [-3, 0, 45]
+    - [-100, -3, 25]
+  ipo_break_rate_30d:  # 近30日IPO破发率 (%)，越低越好
+    - [0, 15, 90]
+    - [15, 30, 70]
+    - [30, 50, 50]
+    - [50, 70, 30]
+    - [70, 100, 15]
+  southbound_net_flow:  # 南向资金净流入（亿港元）
+    - [50, 9999, 85]
+    - [20, 50, 72]
+    - [0, 20, 58]
+    - [-30, 0, 40]
+    - [-9999, -30, 22]
+  hsi_volatility:  # 恒指波动率 (%)，越低越好
+    - [0, 15, 80]
+    - [15, 20, 65]
+    - [20, 25, 50]
+    - [25, 35, 35]
+    - [35, 100, 18]
+
+# 发行规模分类阈值（百万港元）
+offer_size_tiers:
+  micro: 200       # < 200M: 微型IPO
+  small: 1000      # 200M-1B: 小型
+  medium: 5000     # 1B-5B: 中型
+  large: 10000     # 5B-10B: 大型
+  mega: 10000      # > 10B: 超大型
+
+# 卖出时机模型参数
+sell_timing:
+  # 按市值区间的建议持有策略
+  small_cap_threshold: 5000    # < 50亿港元 = 小市值
+  large_cap_threshold: 30000   # > 300亿港元 = 大市值
+  strategies:
+    quick_flip:
+      max_hold_days: 3
+      stop_loss_pct: -5
+      take_profit_pct: 15
+      description: "速战速决（T+1~T+3），适合小市值高认购"
+    short_hold:
+      max_hold_days: 10
+      stop_loss_pct: -8
+      take_profit_pct: 25
+      description: "短线持有（1-2周），适合中市值认购活跃"
+    medium_hold:
+      max_hold_days: 60
+      stop_loss_pct: -10
+      take_profit_pct: 40
+      description: "中线持有（1-3月），适合大市值机构参与度高"
+
+# ============================================================
+# P2/P3 新增维度评分配置
+# ============================================================
+
+# 同批次新股横向对比评分
+peer_comparison_scoring:
+  rank_score_map:     # 百分位排名 → 评分映射
+    top20: 90
+    top40: 75
+    mid: 60
+    bottom40: 45
+    bottom20: 30
+  batch_break_rate:   # 同批次破发率 (%)
+    - [0, 15, 90]
+    - [15, 30, 70]
+    - [30, 50, 50]
+    - [50, 70, 30]
+    - [70, 100, 15]
+  batch_avg_return:   # 同批次平均首日涨幅 (%)
+    - [20, 100, 90]
+    - [10, 20, 78]
+    - [5, 10, 65]
+    - [0, 5, 50]
+    - [-5, 0, 38]
+    - [-100, -5, 20]
+
+# A+H 股分析评分
+ah_stock_scoring:
+  ah_premium:         # A/H 溢价率 (%)，正=A股贵
+    - [40, 200, 90]   # A股大幅溢价 → H股极具吸引力
+    - [20, 40, 80]
+    - [5, 20, 68]
+    - [-5, 5, 50]     # 基本持平
+    - [-20, -5, 35]
+    - [-100, -20, 20] # H股反而贵
+  pe_discount_ah:     # H股PE相对A股折让 (%)
+    - [-100, -30, 90] # H股PE大幅低于A股
+    - [-30, -10, 75]
+    - [-10, 0, 60]
+    - [0, 15, 45]
+    - [15, 100, 25]   # H股PE反而高于A股
+
+# 暗盘数据评分
+grey_market_scoring:
+  premium:            # 暗盘溢价率 (%)
+    - [20, 200, 95]   # 暗盘大涨
+    - [10, 20, 85]
+    - [5, 10, 75]
+    - [0, 5, 60]
+    - [-3, 0, 42]
+    - [-10, -3, 25]
+    - [-100, -10, 10] # 暗盘大跌
+
+# 中签率计算器参数
+allotment:
+  default_lot_size: 500
+  freeze_days: 5
+  brokerage_fee_rate: 0.001
+  financing_rate_annual: 0.05

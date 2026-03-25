@@ -160,6 +160,38 @@
   </div>
   {% endif %}
 
+  <!-- 卖出时机建议 -->
+  {% if sell_timing %}
+  <div class="section" style="border-left: 4px solid #0984e3;">
+    <h2>💡 卖出时机建议</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+      <div style="background: #f0f4ff; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">建议策略</div>
+        <div style="font-size: 20px; font-weight: 700; color: #1a365d;">{{ sell_timing.strategy }}</div>
+      </div>
+      <div style="background: #f0f4ff; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">建议持有时间</div>
+        <div style="font-size: 20px; font-weight: 700; color: #1a365d;">≤ {{ sell_timing.suggested_days }} 天</div>
+      </div>
+      <div style="background: #fff5f5; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">止损线</div>
+        <div style="font-size: 20px; font-weight: 700; color: #d63031;">{{ sell_timing.stop_loss_pct }}%</div>
+      </div>
+      <div style="background: #f0fff4; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">止盈目标</div>
+        <div style="font-size: 20px; font-weight: 700; color: #00b894;">+{{ sell_timing.take_profit_pct }}%</div>
+      </div>
+    </div>
+    <div class="analysis-text" style="margin-top: 16px;">
+      <strong>策略逻辑:</strong> {{ sell_timing.rationale }}<br>
+      <strong>置信度:</strong> {{ sell_timing.confidence }}
+    </div>
+    <div style="margin-top: 12px; font-size: 12px; color: #999;">
+      ⚠️ 卖出时机仅为参考建议，请结合实际盘面和个人风险偏好决策。
+    </div>
+  </div>
+  {% endif %}
+
   <!-- 分析摘要 -->
   <div class="section">
     <h2>📝 分析摘要</h2>
