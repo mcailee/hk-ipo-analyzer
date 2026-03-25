@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ report.company_name }} ({{ report.stock_code }}) — IPO 打新分析报告</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; line-height: 1.6; }
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+  .header { background: linear-gradient(135deg, #1a365d, #2d3748); color: white; padding: 40px; border-radius: 12px; margin-bottom: 24px; }
+  .header h1 { font-size: 24px; margin-bottom: 8px; }
+  .header .subtitle { opacity: 0.8; font-size: 14px; }
+  .score-card { background: white; border-radius: 12px; padding: 32px; margin-bottom: 24px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .score-big { font-size: 72px; font-weight: 800; margin: 16px 0; }
+  .score-big.green { color: #00b894; }
+  .score-big.blue { color: #0984e3; }
+  .score-big.yellow { color: #f39c12; }
+  .score-big.red { color: #d63031; }
+  .rating-badge { display: inline-block; padding: 8px 24px; border-radius: 24px; font-size: 20px; font-weight: 700; color: white; margin-top: 8px; }
+  .rating-badge.strong-buy { background: #00b894; }
+  .rating-badge.buy { background: #0984e3; }
+  .rating-badge.neutral { background: #f39c12; }
+  .rating-badge.avoid { background: #d63031; }
+  .downgrade-warning { background: #fff5f5; border: 2px solid #d63031; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .downgrade-warning h3 { color: #d63031; }
+  .phase-compare { display: flex; justify-content: center; gap: 40px; margin-top: 16px; }
+  .phase-item { text-align: center; }
+  .phase-item .label { font-size: 14px; color: #666; }
+  .phase-item .value { font-size: 28px; font-weight: 700; }
+  .section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .section h2 { font-size: 18px; color: #1a365d; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f7fafc; padding: 12px; text-align: left; font-size: 13px; color: #666; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .score-bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .score-bar-fill.high { background: #00b894; }
+  .score-bar-fill.mid { background: #0984e3; }
+  .score-bar-fill.low { background: #f39c12; }
+  .score-bar-fill.danger { background: #d63031; }
+  .radar-container { text-align: center; margin: 24px 0; }
+  .radar-container img { max-width: 100%; border-radius: 8px; }
+  .sub-scores { margin-top: 8px; }
+  .sub-score-item { display: inline-block; background: #f7fafc; padding: 4px 12px; border-radius: 16px; font-size: 12px; margin: 4px; }
+  .footer { text-align: center; color: #999; font-size: 12px; padding: 24px; }
+  .analysis-text { color: #555; font-size: 14px; margin-top: 8px; padding: 12px; background: #f7fafc; border-radius: 8px; border-left: 3px solid #0984e3; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 封面 -->
+  <div class="header">
+    <h1>📊 {{ report.company_name }} ({{ report.stock_code }})</h1>
+    <div class="subtitle">港股 IPO 打新量化分析报告 | Phase {{ report.phase }} | {{ generated_at }}</div>
+    {% if report.industry %}<div class="subtitle">行业: {{ report.industry }}</div>{% endif %}
+  </div>
+
+  <!-- 综合评分 -->
+  <div class="score-card">
+    <div>综合评分</div>
+    <div class="score-big {{ score_color_class }}">{{ "%.1f"|format(report.total_score) }}</div>
+    <div>/ 100</div>
+    <div class="rating-badge {{ rating_class }}">{{ report.rating }}</div>
+
+    {% if report.original_rating %}
+    <div class="downgrade-warning">
+      <h3>🚨 降级警告</h3>
+      <p>原评级「{{ report.original_rating }}」因以下红线触发降至「{{ report.rating }}」：</p>
+      <ul>
+        {% for reason in report.downgrade_reasons %}
+        <li>{{ reason }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if report.phase1_score is not none %}
+    <div class="phase-compare">
+      <div class="phase-item">
+        <div class="label">Phase 1</div>
+        <div class="value">{{ "%.1f"|format(report.phase1_score) }}</div>
+      </div>
+      <div class="phase-item">
+        <div class="label">→</div>
+        <div class="value" style="color: #666;">{% if report.total_score > report.phase1_score %}↑{% elif report.total_score < report.phase1_score %}↓{% else %}→{% endif %}</div>
+      </div>
+      <div class="phase-item">
+        <div class="label">Phase 2</div>
+        <div class="value">{{ "%.1f"|format(report.total_score) }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 雷达图 -->
+  {% if radar_base64 %}
+  <div class="section">
+    <h2>📈 多维度雷达图</h2>
+    <div class="radar-container">
+      <img src="data:image/png;base64,{{ radar_base64 }}" alt="雷达图">
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 各维度详情 -->
+  <div class="section">
+    <h2>📋 各维度评分详情</h2>
+    <table>
+      <thead>
+        <tr><th>维度</th><th>评分</th><th>权重</th><th>进度</th><th>数据</th></tr>
+      </thead>
+      <tbody>
+        {% for ds in dimension_scores_sorted %}
+        <tr>
+          <td><strong>{{ ds.display_name }}</strong></td>
+          <td><strong style="color: {{ ds._color }}">{{ "%.0f"|format(ds.score) }}</strong></td>
+          <td>{{ "%.0f%%"|format(ds.weight * 100) }}</td>
+          <td>
+            <div class="score-bar">
+              <div class="score-bar-fill {{ ds._bar_class }}" style="width: {{ ds.score }}%"></div>
+            </div>
+          </td>
+          <td>{{ "✅" if ds.data_sufficient else "⚠️" }}</td>
+        </tr>
+        <tr>
+          <td colspan="5">
+            <div class="analysis-text">{{ ds.analysis }}</div>
+            {% if ds.sub_scores %}
+            <div class="sub-scores">
+              {% for ss in ds.sub_scores %}
+              <span class="sub-score-item">{{ ss.name }}: {{ "%.0f"|format(ss.score) }} — {{ ss.detail }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 行业专属指标 -->
+  {% if report.industry_specific_scores %}
+  <div class="section">
+    <h2>🏭 行业专属指标 ({{ report.industry or "通用" }})</h2>
+    <table>
+      <thead><tr><th>指标</th><th>评分</th><th>说明</th></tr></thead>
+      <tbody>
+        {% for ss in report.industry_specific_scores %}
+        <tr>
+          <td>{{ ss.name }}</td>
+          <td><strong>{{ "%.0f"|format(ss.score) }}</strong></td>
+          <td>{{ ss.detail }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- 分析摘要 -->
+  <div class="section">
+    <h2>📝 分析摘要</h2>
+    <pre style="white-space: pre-wrap; font-family: inherit;">{{ report.summary }}</pre>
+  </div>
+
+  <div class="footer">
+    港股 IPO 打新量化分析助手 | 仅供研究参考，不构成投资建议 | Generated by hk-ipo-analyzer
+  </div>
+</div>
+</body>
+</html>

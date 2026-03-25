@@ -1,0 +1,185 @@
+# ============================================================
+# 港股 IPO 打新分析助手 - 全局配置
+# ============================================================
+
+# 11 大分析维度及权重
+dimensions:
+  valuation:
+    name: "估值定价"
+    weight: 0.18
+    phase: 1
+  subscription:
+    name: "市场认购热度"
+    weight: 0.15
+    phase: 2
+  financial:
+    name: "财务状况"
+    weight: 0.14
+    phase: 1
+  industry:
+    name: "行业竞争"
+    weight: 0.10
+    phase: 1
+  cornerstone:
+    name: "基石投资者"
+    weight: 0.10
+    phase: 1
+  company:
+    name: "公司基本面"
+    weight: 0.08
+    phase: 1
+  underwriting:
+    name: "承销发行"
+    weight: 0.08
+    phase: 1
+  liquidity:
+    name: "上市后流动性"
+    weight: 0.07
+    phase: 2
+  greenshoe:
+    name: "绿鞋机制"
+    weight: 0.05
+    phase: 1
+  shareholder:
+    name: "股东构成"
+    weight: 0.03
+    phase: 1
+  legal:
+    name: "法律诉讼"
+    weight: 0.02
+    phase: 1
+
+# 四级评级阈值
+rating:
+  thresholds:
+    strong_buy: 80    # >= 80: 强烈推荐
+    buy: 65           # >= 65: 推荐
+    neutral: 50       # >= 50: 中性
+    # < 50: 回避
+  labels:
+    strong_buy: "强烈推荐"
+    buy: "推荐"
+    neutral: "中性"
+    avoid: "回避"
+
+# 法律诉讼降级红线
+legal_red_flags:
+  litigation_to_net_asset_ratio: 0.20    # 涉诉金额超净资产 20%
+  criminal_case: true                     # 存在刑事诉讼
+  regulatory_investigation: true          # 被监管部门立案调查
+
+# 基石投资者扣分/加分规则
+cornerstone_rules:
+  high_ratio_threshold: 0.70      # 占比超 70% 扣分
+  high_ratio_penalty: -15
+  related_party_threshold: 0.50   # 关联方占比超 50% 扣分
+  related_party_penalty: -20
+  top_investor_bonus: 15          # 顶级主权基金/PE 加分
+
+# 行业分类关键词
+industry_keywords:
+  tmt:
+    - "科技"
+    - "互联网"
+    - "软件"
+    - "SaaS"
+    - "半导体"
+    - "芯片"
+    - "云计算"
+    - "人工智能"
+    - "AI"
+    - "游戏"
+    - "电商"
+    - "社交"
+    - "信息技术"
+    - "通信"
+  pharma:
+    - "医药"
+    - "生物"
+    - "制药"
+    - "医疗"
+    - "biotech"
+    - "创新药"
+    - "疫苗"
+    - "基因"
+    - "诊断"
+    - "器械"
+    - "CRO"
+    - "CDMO"
+  consumer:
+    - "消费"
+    - "零售"
+    - "餐饮"
+    - "食品"
+    - "饮料"
+    - "服装"
+    - "品牌"
+    - "连锁"
+    - "奢侈"
+    - "日用"
+    - "美妆"
+
+# 爬虫参数
+scraper:
+  min_delay: 1.0
+  max_delay: 2.0
+  timeout: 30
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# 估值定价子指标评分区间
+valuation_scoring:
+  pe_discount:  # 相对同行 PE 折价率
+    - [-100, -30, 90]   # 折价超 30%: 优秀
+    - [-30, -10, 75]    # 折价 10-30%: 良好
+    - [-10, 0, 60]      # 折价 0-10%: 一般
+    - [0, 20, 40]       # 溢价 0-20%: 偏高
+    - [20, 100, 20]     # 溢价超 20%: 危险
+  price_range_position:  # 定价在区间中的位置 (0-1)
+    - [0, 0.3, 85]      # 下限定价: 利好
+    - [0.3, 0.6, 65]    # 中间: 中性
+    - [0.6, 0.85, 45]   # 偏上限: 偏负面
+    - [0.85, 1.0, 25]   # 上限定价: 负面
+
+# 财务指标评分区间
+financial_scoring:
+  revenue_cagr:  # 营收复合增速 (%)
+    - [50, 999, 95]
+    - [30, 50, 85]
+    - [15, 30, 70]
+    - [5, 15, 55]
+    - [0, 5, 40]
+    - [-100, 0, 20]
+  net_margin:  # 净利润率 (%)
+    - [20, 100, 90]
+    - [10, 20, 75]
+    - [5, 10, 60]
+    - [0, 5, 45]
+    - [-100, 0, 25]
+  debt_ratio:  # 资产负债率 (%)
+    - [0, 30, 90]
+    - [30, 50, 75]
+    - [50, 65, 55]
+    - [65, 80, 35]
+    - [80, 100, 15]
+  roe:  # ROE (%)
+    - [20, 100, 90]
+    - [15, 20, 80]
+    - [10, 15, 65]
+    - [5, 10, 50]
+    - [-100, 5, 30]
+
+# 认购热度评分区间
+subscription_scoring:
+  public_mult:  # 公开认购倍数
+    - [500, 9999, 95]
+    - [100, 500, 85]
+    - [30, 100, 70]
+    - [10, 30, 55]
+    - [1, 10, 40]
+    - [0, 1, 15]
+  intl_mult:  # 国际配售倍数
+    - [20, 999, 90]
+    - [10, 20, 80]
+    - [5, 10, 65]
+    - [2, 5, 50]
+    - [0, 2, 30]

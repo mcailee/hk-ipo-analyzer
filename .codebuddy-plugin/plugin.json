@@ -1,0 +1,24 @@
+{
+  "name": "hk-ipo-analyzer",
+  "version": "1.0.0",
+  "description": "港股 IPO 打新量化分析助手。输入新股代码，自动采集港交所、雪球公开数据及招股书 PDF，从 11 个维度进行量化评分，支持分阶段分析（招股期/认购期），输出综合评分、雷达图、结构化研报和投资建议。",
+  "author": {
+    "name": "Michael Li",
+    "email": "mcai.lee@gmail.com"
+  },
+  "repository": "https://github.com/mcailee/hk-ipo-analyzer",
+  "license": "MIT",
+  "keywords": [
+    "港股",
+    "IPO",
+    "打新",
+    "量化分析",
+    "新股",
+    "Hong Kong",
+    "stock",
+    "investment"
+  ],
+  "engines": {
+    "python": ">=3.10"
+  }
+}

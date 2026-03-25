@@ -1,0 +1,20 @@
+{
+  "name": "hk-ipo-tools",
+  "owner": {
+    "name": "Michael Li",
+    "email": "mcai.lee@gmail.com"
+  },
+  "metadata": {
+    "description": "港股 IPO 打新分析工具集",
+    "category": "Finance",
+    "tags": ["港股", "IPO", "打新", "量化分析", "AI"]
+  },
+  "plugins": [
+    {
+      "name": "hk-ipo-analyzer",
+      "source": "./",
+      "description": "港股 IPO 打新量化分析助手 — 11维度评分 + 雷达图 + HTML研报",
+      "version": "1.0.0"
+    }
+  ]
+}
