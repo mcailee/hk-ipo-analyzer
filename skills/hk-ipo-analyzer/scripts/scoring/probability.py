@@ -88,10 +88,16 @@ class ProbabilityPredictor:
             elif sent.hsi_1m_change < -5:
                 modifier -= 2.0
 
-        # 4. 计算最终预期收益区间
+        # 4. 计算最终预期收益区间（含 clamp 防止极端值）
         mid_return = base_return + modifier
+        mid_return = max(-50, min(80, mid_return))
         low_return = mid_return - 1.5 * adjusted_std
         high_return = mid_return + 1.5 * adjusted_std
+        low_return = max(-80, min(100, low_return))
+        high_return = max(-60, min(120, high_return))
+
+        # 确保 up_prob 在合理范围
+        up_prob = max(0.02, min(0.98, up_prob))
 
         # 5. 确定置信度
         if data_quality >= 0.8 and gm.grey_market_price is not None:
@@ -120,12 +126,22 @@ class ProbabilityPredictor:
         )
 
     def _score_to_stats(self, score: float):
-        """评分 → (预期收益, 上涨概率, 标准差)。"""
-        for low, high, ret, up, std in self.SCORE_RETURN_MAP:
+        """评分 → (预期收益, 上涨概率, 标准差)，区间内线性插值。"""
+        smap = self.SCORE_RETURN_MAP  # 降序排列: [80-100, 70-80, ..., 0-40]
+        for i, (low, high, ret, up, std) in enumerate(smap):
             if low <= score < high:
-                # 在区间内线性插值
                 t = (score - low) / (high - low) if high > low else 0.5
-                return ret, up, std
+                # 在当前区间值和下一（更低）区间值之间插值
+                # t=0 时取下一区间值（低端），t=1 时取当前区间值（高端）
+                if i + 1 < len(smap):
+                    _, _, ret_next, up_next, std_next = smap[i + 1]
+                else:
+                    # 最后一个区间（最低分段），无下一区间，用自身
+                    ret_next, up_next, std_next = ret, up, std
+                interp_ret = ret_next + t * (ret - ret_next)
+                interp_up = up_next + t * (up - up_next)
+                interp_std = std_next + t * (std - std_next)
+                return interp_ret, interp_up, interp_std
 
         # 边界处理
         if score >= 100:

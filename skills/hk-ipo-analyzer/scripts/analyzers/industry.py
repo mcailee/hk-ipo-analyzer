@@ -1,4 +1,4 @@
-"""行业竞争分析器（10%）。"""
+"""行业竞争分析器（12%）。"""
 from __future__ import annotations
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

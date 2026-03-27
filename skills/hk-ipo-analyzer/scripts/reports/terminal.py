@@ -90,9 +90,13 @@ def print_report(report: FinalReport):
     table.add_column("数据", justify="center", width=6)
     table.add_column("核心分析", width=50)
 
+    # 计算归一化权重（与 scorer.py 一致）
+    total_weight = sum(ds.weight for ds in report.dimension_scores) or 1.0
+
     for ds in sorted(report.dimension_scores, key=lambda x: x.weight, reverse=True):
         color = _score_color(ds.score)
-        weighted = ds.score * ds.weight
+        normalized_weight = ds.weight / total_weight
+        weighted = ds.score * normalized_weight
         data_status = "✅" if ds.data_sufficient else "⚠️"
         analysis_short = ds.analysis[:60] + "..." if len(ds.analysis) > 60 else ds.analysis
 

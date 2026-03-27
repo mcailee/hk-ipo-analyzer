@@ -192,6 +192,89 @@
   </div>
   {% endif %}
 
+  <!-- 概率预测区间 -->
+  {% if probability %}
+  <div class="section" style="border-left: 4px solid #6c5ce7;">
+    <h2>🎲 概率预测区间</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+      <div style="background: #f0fff4; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">首日上涨概率</div>
+        <div style="font-size: 24px; font-weight: 700; color: #00b894;">{{ "%.1f"|format(probability.first_day_up_prob) }}%</div>
+      </div>
+      <div style="background: #fff5f5; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">首日下跌概率</div>
+        <div style="font-size: 24px; font-weight: 700; color: #d63031;">{{ "%.1f"|format(probability.first_day_down_prob) }}%</div>
+      </div>
+    </div>
+    <div style="margin-top: 16px; background: #f8f9fa; padding: 16px; border-radius: 8px;">
+      <div style="font-size: 13px; color: #666; margin-bottom: 8px;">预期收益区间</div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 18px; color: #d63031; font-weight: 600;">{{ "%+.1f"|format(probability.expected_return_low) }}%</span>
+        <span style="color: #999;">—</span>
+        <span style="font-size: 22px; color: #2d3436; font-weight: 700;">{{ "%+.1f"|format(probability.expected_return_mid) }}%</span>
+        <span style="color: #999;">—</span>
+        <span style="font-size: 18px; color: #00b894; font-weight: 600;">{{ "%+.1f"|format(probability.expected_return_high) }}%</span>
+      </div>
+      <div style="display: flex; gap: 24px; margin-top: 12px; font-size: 13px; color: #666;">
+        <span>置信度: <strong>{{ probability.confidence_level }}</strong></span>
+        <span>方法: {{ probability.methodology }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 中签率估算 -->
+  {% if allotment %}
+  <div class="section" style="border-left: 4px solid #fdcb6e;">
+    <h2>🎯 中签率估算</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px;">
+      {% if allotment.estimated_allocation_rate is not none %}
+      <div style="background: #fffbf0; padding: 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">估算中签率</div>
+        <div style="font-size: 22px; font-weight: 700; color: #e17055;">{{ "%.2f"|format(allotment.estimated_allocation_rate) }}%</div>
+      </div>
+      {% endif %}
+      {% if allotment.estimated_one_hand_win_rate is not none %}
+      <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">一手中签率</div>
+        <div style="font-size: 22px; font-weight: 700; color: #0984e3;">{{ "%.1f"|format(allotment.estimated_one_hand_win_rate) }}%</div>
+      </div>
+      {% endif %}
+      {% if allotment.optimal_hands is not none %}
+      <div style="background: #f0fff4; padding: 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">建议认购手数</div>
+        <div style="font-size: 22px; font-weight: 700; color: #00b894;">{{ allotment.optimal_hands }} 手</div>
+      </div>
+      {% endif %}
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px;">
+      {% if allotment.expected_profit_per_hand is not none %}
+      <div style="background: {{ '#f0fff4' if allotment.expected_profit_per_hand > 0 else '#fff5f5' }}; padding: 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">每手预期盈利</div>
+        <div style="font-size: 20px; font-weight: 700; color: {{ '#00b894' if allotment.expected_profit_per_hand > 0 else '#d63031' }};">HK${{ "{:,.0f}".format(allotment.expected_profit_per_hand) }}</div>
+      </div>
+      {% endif %}
+      {% if allotment.capital_required is not none %}
+      <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">所需本金</div>
+        <div style="font-size: 20px; font-weight: 700; color: #2d3436;">HK${{ "{:,.0f}".format(allotment.capital_required) }}</div>
+      </div>
+      {% endif %}
+      {% if allotment.capital_efficiency is not none %}
+      <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">资金效率 (年化)</div>
+        <div style="font-size: 20px; font-weight: 700; color: #6c5ce7;">{{ "%.1f"|format(allotment.capital_efficiency) }}%</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if allotment.methodology %}
+    <div style="margin-top: 12px; font-size: 12px; color: #999;">
+      {{ allotment.methodology }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- 分析摘要 -->
   <div class="section">
     <h2>📝 分析摘要</h2>

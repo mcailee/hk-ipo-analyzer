@@ -62,8 +62,8 @@ class PharmaAnalyzer(IndustrySpecificAnalyzer):
                 s = 40
             subs.append(SubScore("研发费用率", s, f"研发费用率 {rd_ratio:.0f}%", rd_ratio))
 
-        # 首创 vs 仿制
-        is_innovative = d.get("is_innovative", False)
+        # 首创 vs 仿制（不设默认值，数据缺失时跳过）
+        is_innovative = d.get("is_innovative")
         if is_innovative is not None:
             s = 80 if is_innovative else 45
             subs.append(SubScore("创新属性", s,

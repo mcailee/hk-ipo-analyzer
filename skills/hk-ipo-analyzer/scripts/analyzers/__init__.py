@@ -18,7 +18,7 @@ from analyzers.grey_market import GreyMarketAnalyzer
 
 
 def get_phase1_analyzers() -> list:
-    """Phase1 招股期：10 个基本面分析器（含市场情绪）+ 条件性 A+H 分析。"""
+    """Phase1 招股期：10 个基本面分析器（含市场情绪）。"""
     return [
         ValuationAnalyzer(),
         FinancialAnalyzer(),
@@ -30,17 +30,17 @@ def get_phase1_analyzers() -> list:
         GreenshoeAnalyzer(),
         ShareholderAnalyzer(),
         LegalAnalyzer(),
-        AHStockAnalyzer(),          # P2: A+H股分析（条件性，无A股时 weight=0）
     ]
 
 
 def get_phase2_analyzers() -> list:
-    """Phase2 认购期：新增 4 个维度（含条件性维度）。"""
+    """Phase2 认购期：新增 5 个维度（含条件性维度）。"""
     return [
         SubscriptionAnalyzer(),
         LiquidityAnalyzer(),
         PeerComparisonAnalyzer(),   # P2: 同批次新股横向对比（条件性）
         GreyMarketAnalyzer(),       # P3: 暗盘数据分析（条件性）
+        AHStockAnalyzer(),          # P2: A+H股分析（条件性，无A股时 weight=0）
     ]
 
 

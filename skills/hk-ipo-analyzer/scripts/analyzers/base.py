@@ -26,13 +26,19 @@ class BaseAnalyzer(ABC):
                        ranges: list[list]) -> float:
         """通用区间映射评分。
         ranges: [[下限, 上限, 分数], ...]
+        最后一个区间为闭区间 [low, high]，其余为半开区间 [low, high)。
         """
         if value is None:
             return 50.0  # 数据缺失返回中性分
-        for r in ranges:
+        for i, r in enumerate(ranges):
             low, high, score = r[0], r[1], r[2]
-            if low <= value < high:
-                return float(score)
+            if i == len(ranges) - 1:
+                # 最后一个区间：闭区间，防止精确上限值穿透
+                if low <= value <= high:
+                    return float(score)
+            else:
+                if low <= value < high:
+                    return float(score)
         return 50.0
 
     def handle_missing(self, weight: float) -> DimensionScore:

@@ -57,9 +57,10 @@ class ConsumerAnalyzer(IndustrySpecificAnalyzer):
             subs.append(SubScore("库存周转", s,
                                  f"库存周转 {inv_days:.0f} 天", inv_days))
 
-        # 毛利率趋势
-        gm = data.financial.gross_margin
-        if gm is not None:
+        # 毛利率水平（优先用行业专属数据，避免与 financial.py 通用毛利率重复）
+        gm = safe_float(d.get("gross_margin")) or data.financial.gross_margin
+        if gm is not None and d.get("gross_margin") is not None:
+            # 仅当行业数据中有专属毛利率时才评分（否则由 financial.py 通用评分覆盖）
             if gm >= 60:
                 s = 90
             elif gm >= 45:
@@ -68,7 +69,7 @@ class ConsumerAnalyzer(IndustrySpecificAnalyzer):
                 s = 55
             else:
                 s = 35
-            subs.append(SubScore("毛利率水平", s, f"毛利率 {gm:.1f}%", gm))
+            subs.append(SubScore("毛利率水平", s, f"消费品毛利率 {gm:.1f}%", gm))
 
         # 渠道分布
         online_pct = safe_float(d.get("online_revenue_pct"))

@@ -52,13 +52,7 @@ class AllotmentCalculator:
 
         # 基础参数
         offer_price = val.final_price or val.offer_price_high or val.offer_price_low
-        lot_size = self.DEFAULT_LOT_SIZE
-        if val.total_shares and val.total_shares > 0:
-            # 尝试从发行股数推算每手（港股常见500/1000/2000）
-            for ls in [100, 200, 500, 1000, 2000, 4000, 5000, 10000]:
-                if val.total_shares % ls == 0:
-                    lot_size = ls
-                    break
+        lot_size = self._infer_lot_size(offer_price, val.total_shares)
 
         if offer_price is None or offer_price <= 0:
             return AllotmentEstimate(
@@ -173,6 +167,36 @@ class AllotmentCalculator:
                 break
 
         return base_mult
+
+    def _infer_lot_size(self, offer_price: float | None,
+                        total_shares: int | None) -> int:
+        """基于发行价推算每手股数（港股惯例：每手入场费约 2000-5000 港元）。"""
+        COMMON_LOTS = [100, 200, 400, 500, 1000, 2000, 4000, 5000, 10000]
+        TARGET_MIN, TARGET_MAX = 2000, 5000  # 目标每手入场费区间
+
+        if offer_price and offer_price > 0:
+            # 选择让每手入场费落在 2000-5000 港元的最佳 lot_size
+            best = self.DEFAULT_LOT_SIZE
+            best_cost = offer_price * best
+            for ls in COMMON_LOTS:
+                cost = offer_price * ls
+                if TARGET_MIN <= cost <= TARGET_MAX:
+                    best = ls
+                    best_cost = cost
+            # 如果没有任何 lot_size 落在目标区间，选最接近 3500 港元的
+            if best_cost < TARGET_MIN or best_cost > TARGET_MAX:
+                best = min(COMMON_LOTS,
+                           key=lambda ls: abs(offer_price * ls - 3500))
+            # 如果有 total_shares，验证 lot_size 能整除
+            if total_shares and total_shares > 0 and total_shares % best != 0:
+                for ls in sorted(COMMON_LOTS,
+                                 key=lambda x: abs(offer_price * x - 3500)):
+                    if total_shares % ls == 0:
+                        best = ls
+                        break
+            return best
+
+        return self.DEFAULT_LOT_SIZE
 
     @staticmethod
     def _optimal_hands(mult: float, one_hand_rate: float) -> int:

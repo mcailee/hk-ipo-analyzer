@@ -32,10 +32,13 @@ class PeerComparisonAnalyzer(BaseAnalyzer):
 
         peers = pc.peers or []
 
-        if not peers:
+        # 仅当 peers 列表和聚合数据都为空时才返回缺失
+        has_aggregate = (pc.batch_break_rate is not None
+                         or pc.batch_avg_first_day_return is not None)
+        if not peers and not has_aggregate:
             return self.handle_missing(weight)
 
-        total_in_batch = pc.total_in_batch or len(peers)
+        total_in_batch = pc.total_in_batch or len(peers) or 0
 
         # 1. 认购倍数排名
         current_mult = data.subscription.public_subscription_mult

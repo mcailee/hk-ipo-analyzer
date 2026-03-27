@@ -172,12 +172,17 @@ class PDFParser:
                         if vals:
                             data.financial.net_profit_latest = vals[0]
 
-        # 计算增速
-        if data.financial.revenue_latest and data.financial.revenue_prev:
-            if data.financial.revenue_prev > 0:
-                data.financial.revenue_cagr = (
-                    (data.financial.revenue_latest / data.financial.revenue_prev - 1) * 100
-                )
+        # 计算增速：优先 3 年数据的真正 2 年 CAGR，否则退化为 YoY
+        if (data.financial.revenue_latest and data.financial.revenue_prev2
+                and data.financial.revenue_prev2 > 0):
+            data.financial.revenue_cagr = (
+                (data.financial.revenue_latest / data.financial.revenue_prev2) ** 0.5 - 1
+            ) * 100
+        elif (data.financial.revenue_latest and data.financial.revenue_prev
+              and data.financial.revenue_prev > 0):
+            data.financial.revenue_cagr = (
+                (data.financial.revenue_latest / data.financial.revenue_prev - 1) * 100
+            )
 
     def _parse_cornerstone(self, texts: list[str], tables: list, data: IPOData):
         """解析基石投资者。"""
@@ -208,9 +213,25 @@ class PDFParser:
                 if re.search(r"(关联|connected|相关|associated)", name, re.I):
                     inv.is_related_party = True
                     inv.tier = "related"
-                # 判断是否顶级机构
-                top_names = ["GIC", "Temasek", "淡马锡", "高瓴", "红杉", "KKR",
-                             "Sequoia", "Hillhouse", "BlackRock", "贝莱德"]
+                # 判断是否顶级机构（主权基金、顶级PE/VC、资管巨头）
+                top_names = [
+                    # 主权基金
+                    "GIC", "Temasek", "淡马锡", "中投", "CIC",
+                    "ADIA", "阿布扎比", "Abu Dhabi", "挪威主权", "Norges",
+                    "CPPIB", "加拿大养老金", "Canada Pension",
+                    # 顶级 PE/VC
+                    "高瓴", "Hillhouse", "红杉", "Sequoia", "KKR",
+                    "BlackRock", "贝莱德", "Carlyle", "凯雷",
+                    "Warburg Pincus", "TPG", "Apollo", "Bain Capital", "贝恩资本",
+                    "春华", "Primavera", "厚朴", "Hopu", "博裕", "Boyu",
+                    "鼎晖", "CDH", "太盟", "PAG",
+                    # 顶级资管
+                    "高盛资管", "Goldman Sachs Asset", "富达", "Fidelity",
+                    "桥水", "Bridgewater", "瑞银资管", "UBS Asset",
+                    "景林", "淡水泉", "中信资本", "CITIC Capital",
+                    # 险资/平台
+                    "平安", "Ping An", "惠理", "Value Partners",
+                ]
                 for tn in top_names:
                     if tn.lower() in name.lower():
                         inv.tier = "top_pe"
@@ -236,10 +257,22 @@ class PDFParser:
         if re.search(r"(立案调查|监管.*调查|regulatory.*investigation|enforcement)", full_text, re.I):
             data.legal.has_regulatory_investigation = True
 
-        # 提取涉诉金额
-        amounts = re.findall(r'(\d[\d,.]*)\s*(?:百万|million|千万|亿)', full_text, re.I)
-        if amounts:
-            total = sum(safe_float(a) or 0 for a in amounts)
+        # 提取涉诉金额（按单位统一换算为百万元）
+        unit_patterns = [
+            (r'(\d[\d,.]*)\s*亿', 100),        # 亿 → 百万: ×100
+            (r'(\d[\d,.]*)\s*千万', 10),        # 千万 → 百万: ×10
+            (r'(\d[\d,.]*)\s*(?:百万|million)', 1),  # 百万/million → ×1
+        ]
+        total = 0.0
+        found = False
+        for pattern, multiplier in unit_patterns:
+            matches = re.findall(pattern, full_text, re.I)
+            for m in matches:
+                val = safe_float(m)
+                if val and val > 0:
+                    total += val * multiplier
+                    found = True
+        if found:
             data.legal.total_amount = total
 
         # 统计案件数

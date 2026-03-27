@@ -59,8 +59,13 @@ class GreyMarketAnalyzer(BaseAnalyzer):
                 desc = f"暗盘平收（暗盘价 = 发行价 HK${offer_price:.2f}）"
             else:
                 desc = f"暗盘折价 {premium:.1f}%（暗盘价 HK${gm.grey_market_price:.2f} vs 发行价 HK${offer_price:.2f}）"
-                if premium < -5:
-                    red_flags.append(f"暗盘破发 {premium:.1f}%")
+                # 渐进式惩罚：-3%开始预警，-10%触发红旗
+                if premium < -10:
+                    red_flags.append(f"暗盘深度破发 {premium:.1f}%")
+                elif premium < -3:
+                    # -3% ~ -10% 区间：线性衰减暗盘溢价率得分（通过 score_by_range 已自动处理）
+                    # 但不触发 red_flag（避免 cliff effect）
+                    pass
             subs.append(SubScore("暗盘溢价率", s, desc, premium))
 
         # 2. 暗盘成交活跃度

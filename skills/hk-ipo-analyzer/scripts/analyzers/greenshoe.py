@@ -1,4 +1,4 @@
-"""绿鞋机制分析器（5%）。"""
+"""绿鞋机制分析器（3%）。"""
 from __future__ import annotations
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

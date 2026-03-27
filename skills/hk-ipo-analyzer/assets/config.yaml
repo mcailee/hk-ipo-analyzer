@@ -5,6 +5,9 @@
 
 # 15 大分析维度及权重（v3.0 扩展 — 含 P2/P3 新增维度）
 # 注意：新增维度为条件性参与加权（有数据时参与，无数据时 weight=0）
+# 权重归一化说明：12 个基础维度权重总和 = 100%，3 个条件维度额外 +15%。
+# 当条件维度参与时，scorer.py 会自动归一化至 100%。
+# 例如：全部 15 维度可用时，估值的有效权重 = 15/115 ≈ 13.0%。
 dimensions:
   valuation:
     name: "估值定价"
@@ -63,7 +66,7 @@ dimensions:
   ah_stock:
     name: "A+H股分析"
     weight: 0.04
-    phase: 1
+    phase: 2
     conditional: true
   grey_market:
     name: "暗盘数据"
@@ -164,7 +167,7 @@ valuation_scoring:
 
 # 财务指标评分区间
 financial_scoring:
-  revenue_cagr:  # 营收复合增速 (%)
+  revenue_cagr:  # 营收增速 (%): 3年数据时为CAGR, 2年数据时为YoY
     - [50, 999, 95]
     - [30, 50, 85]
     - [15, 30, 70]
@@ -189,6 +192,17 @@ financial_scoring:
     - [10, 15, 65]
     - [5, 10, 50]
     - [-100, 5, 30]
+  gross_margin:  # 毛利率 (%)
+    - [60, 100, 90]
+    - [40, 60, 75]
+    - [25, 40, 55]
+    - [0, 25, 35]
+    - [-100, 0, 15]
+  operating_cashflow:  # 经营现金流（百万，正=好）
+    - [100, 999999, 85]
+    - [0, 100, 75]
+    - [-50, 0, 45]
+    - [-999999, -50, 30]
 
 # 认购热度评分 — 对数化评分（不再使用线性区间）
 subscription_scoring:
@@ -253,9 +267,10 @@ offer_size_tiers:
   small: 1000      # 200M-1B: 小型
   medium: 5000     # 1B-5B: 中型
   large: 10000     # 5B-10B: 大型
-  mega: 10000      # > 10B: 超大型
+  mega: 50000      # > 10B: 超大型
 
 # 卖出时机模型参数
+# 阈值来源：基于 2020-2025 港股 IPO 回测统计数据校准
 sell_timing:
   # 按市值区间的建议持有策略
   small_cap_threshold: 5000    # < 50亿港元 = 小市值

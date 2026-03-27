@@ -24,12 +24,19 @@ class ValuationAnalyzer(BaseAnalyzer):
         red_flags = []
 
         # 1. PE 相对同行折价率
-        if v.pe_ratio and v.peer_avg_pe and v.peer_avg_pe > 0:
+        if v.pe_ratio and v.pe_ratio > 0 and v.peer_avg_pe and v.peer_avg_pe > 0:
             discount = (v.pe_ratio - v.peer_avg_pe) / v.peer_avg_pe * 100
             s = self.score_by_range(discount, scoring.get("pe_discount", []))
             subs.append(SubScore("PE同行折价率", s,
                                  f"发行PE {v.pe_ratio:.1f}x vs 同行 {v.peer_avg_pe:.1f}x, 折价 {discount:.1f}%",
                                  discount))
+        elif v.ps_ratio and v.ps_ratio > 0 and v.peer_avg_ps and v.peer_avg_ps > 0:
+            # PE 不可用（亏损公司或无数据），切换到 PS 估值
+            ps_discount = (v.ps_ratio - v.peer_avg_ps) / v.peer_avg_ps * 100
+            s = self.score_by_range(ps_discount, scoring.get("pe_discount", []))
+            subs.append(SubScore("PS同行折价率", s,
+                                 f"发行PS {v.ps_ratio:.1f}x vs 同行 {v.peer_avg_ps:.1f}x, 折价 {ps_discount:.1f}%（PE不可用，使用PS替代）",
+                                 ps_discount))
         else:
             subs.append(SubScore("PE同行折价率", 50, "数据不足，无法比较"))
 

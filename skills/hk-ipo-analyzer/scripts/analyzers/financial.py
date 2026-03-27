@@ -1,4 +1,4 @@
-"""财务状况分析器（14%）。"""
+"""财务状况分析器（12%）。"""
 from __future__ import annotations
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -27,16 +27,9 @@ class FinancialAnalyzer(BaseAnalyzer):
             s = self.score_by_range(f.net_margin, scoring.get("net_margin", []))
             subs.append(SubScore("净利润率", s, f"净利润率 {f.net_margin:.1f}%", f.net_margin))
 
-        # 毛利率
+        # 毛利率（配置化评分）
         if f.gross_margin is not None:
-            if f.gross_margin >= 60:
-                s = 90
-            elif f.gross_margin >= 40:
-                s = 75
-            elif f.gross_margin >= 25:
-                s = 55
-            else:
-                s = 35
+            s = self.score_by_range(f.gross_margin, scoring.get("gross_margin", []))
             subs.append(SubScore("毛利率", s, f"毛利率 {f.gross_margin:.1f}%", f.gross_margin))
 
         # 资产负债率
@@ -49,24 +42,14 @@ class FinancialAnalyzer(BaseAnalyzer):
             s = self.score_by_range(f.roe, scoring.get("roe", []))
             subs.append(SubScore("ROE", s, f"ROE {f.roe:.1f}%", f.roe))
 
-        # 经营现金流
+        # 经营现金流（配置化评分）
         if f.operating_cashflow is not None:
-            if f.operating_cashflow > 0:
-                s = 75
-            else:
-                s = 30
+            s = self.score_by_range(f.operating_cashflow, scoring.get("operating_cashflow", []))
             subs.append(SubScore("经营现金流", s,
                                  f"经营现金流 {'正' if f.operating_cashflow > 0 else '负'}",
                                  f.operating_cashflow))
 
-        # 行业专属财务指标
-        industry_type = detect_industry(data.company.industry, config)
-        if industry_type:
-            from analyzers.industry_specific import get_industry_analyzer
-            ind = get_industry_analyzer(industry_type)
-            if ind:
-                ind_subs = ind.analyze(data)
-                subs.extend(ind_subs)
+        # 注: 行业专属指标已统一在 industry.py 中计算，此处不再重复调用
 
         if not subs:
             return self.handle_missing(weight)

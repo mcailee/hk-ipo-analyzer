@@ -1,4 +1,4 @@
-"""基石投资者分析器（10%）— 含反向扣分机制。"""
+"""基石投资者分析器（10%）— 含反向扣分和质量评估机制。"""
 from __future__ import annotations
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -83,6 +83,11 @@ class CornerstoneAnalyzer(BaseAnalyzer):
                 subs.append(SubScore("锁定期", 70, f"平均锁定 {avg_lockup:.0f} 个月"))
             else:
                 subs.append(SubScore("锁定期", 45, f"平均锁定仅 {avg_lockup:.0f} 个月，偏短"))
+
+        # 5. 综合质量评分（整合顶级机构加分、关联方扣分、占比扣分）
+        quality_capped = self.cap_score(quality_score)
+        subs.append(SubScore("综合质量", quality_capped,
+                             f"基石综合质量评分 {quality_capped:.0f}"))
 
         score = self.cap_score(self.avg_scores(subs))
         names = [i.name for i in investors[:5]]

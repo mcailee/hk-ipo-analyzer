@@ -80,7 +80,7 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
 
     from models.ipo_data import (
         IPOData, SubscriptionInfo, LiquidityInfo, MarketSentimentInfo, FinalReport,
-        GreyMarketInfo, AHStockInfo, PeerComparisonInfo,
+        GreyMarketInfo, AHStockInfo, PeerComparisonInfo, CornerstoneInvestor,
     )
     from analyzers import get_phase1_analyzers, get_phase2_analyzers
     from scoring.scorer import Scorer
@@ -115,7 +115,109 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
 
     # 重建 IPOData 并补充认购数据
     data = IPOData()
-    # 补充 Phase2 数据
+
+    # ═══ 第一步：从 Phase1 JSON 恢复所有历史数据 ═══
+    # 必须在暗盘/AH数据构建之前，否则 data.valuation.final_price 等为 None
+    if phase1_data_raw:
+        company = phase1_data_raw.get("company", {})
+        data.company.name = company.get("name")
+        data.company.stock_code = company.get("stock_code") or stock_code
+        data.company.industry = company.get("industry")
+        data.company.name_en = company.get("name_en")
+        data.company.sub_industry = company.get("sub_industry")
+        data.company.founded_year = company.get("founded_year")
+        data.company.headquarters = company.get("headquarters")
+        data.company.main_business = company.get("main_business")
+        data.company.employee_count = company.get("employee_count")
+        data.company.market_position = company.get("market_position")
+        data.company.management_background = company.get("management_background")
+
+        val = phase1_data_raw.get("valuation", {})
+        data.valuation.pe_ratio = val.get("pe_ratio")
+        data.valuation.peer_avg_pe = val.get("peer_avg_pe")
+        data.valuation.offer_price_low = val.get("offer_price_low")
+        data.valuation.offer_price_high = val.get("offer_price_high")
+        data.valuation.final_price = val.get("final_price")
+        data.valuation.market_cap = val.get("market_cap")
+        data.valuation.total_shares = val.get("total_shares")
+        data.valuation.ps_ratio = val.get("ps_ratio")
+        data.valuation.peer_avg_ps = val.get("peer_avg_ps")
+        data.valuation.price_range_position = val.get("price_range_position")
+        data.valuation.comparable_ipo_first_day = val.get("comparable_ipo_first_day")
+
+        fin = phase1_data_raw.get("financial", {})
+        data.financial.revenue_cagr = fin.get("revenue_cagr")
+        data.financial.net_margin = fin.get("net_margin")
+        data.financial.gross_margin = fin.get("gross_margin")
+        data.financial.debt_ratio = fin.get("debt_ratio")
+        data.financial.roe = fin.get("roe")
+        data.financial.net_assets = fin.get("net_assets")
+        data.financial.revenue_latest = fin.get("revenue_latest")
+        data.financial.revenue_prev = fin.get("revenue_prev")
+        data.financial.revenue_prev2 = fin.get("revenue_prev2")
+        data.financial.net_profit_latest = fin.get("net_profit_latest")
+        data.financial.net_profit_prev = fin.get("net_profit_prev")
+        data.financial.operating_cashflow = fin.get("operating_cashflow")
+        data.financial.total_assets = fin.get("total_assets")
+
+        uw = phase1_data_raw.get("underwriting", {})
+        data.underwriting.offer_size = uw.get("offer_size")
+        data.underwriting.sponsor = uw.get("sponsor")
+        data.underwriting.sponsor_tier = uw.get("sponsor_tier")
+        data.underwriting.sponsor_historical_break_rate = uw.get("sponsor_historical_break_rate")
+        if uw.get("joint_sponsors"):
+            data.underwriting.joint_sponsors = uw["joint_sponsors"]
+        if uw.get("underwriters"):
+            data.underwriting.underwriters = uw["underwriters"]
+        data.underwriting.listing_date = uw.get("listing_date")
+        data.underwriting.application_times = uw.get("application_times")
+
+        cs_raw = phase1_data_raw.get("cornerstone", {})
+        if cs_raw:
+            data.cornerstone.total_amount = cs_raw.get("total_amount")
+            data.cornerstone.total_ratio = cs_raw.get("total_ratio")
+            for inv in cs_raw.get("investors", []):
+                if isinstance(inv, dict) and inv.get("name"):
+                    data.cornerstone.investors.append(
+                        CornerstoneInvestor(
+                            name=inv["name"],
+                            amount=inv.get("amount"),
+                            is_related_party=inv.get("is_related_party", False),
+                            tier=inv.get("tier", "other"),
+                            lockup_months=inv.get("lockup_months"),
+                        )
+                    )
+
+        gs_raw = phase1_data_raw.get("greenshoe", {})
+        if gs_raw:
+            data.greenshoe.has_greenshoe = gs_raw.get("has_greenshoe")
+            data.greenshoe.overallotment_ratio = gs_raw.get("overallotment_ratio")
+            data.greenshoe.stabilization_period_days = gs_raw.get("stabilization_period_days")
+
+        legal_raw = phase1_data_raw.get("legal", {})
+        if legal_raw:
+            data.legal.total_cases = legal_raw.get("total_cases")
+            data.legal.total_amount = legal_raw.get("total_amount")
+            data.legal.has_criminal_case = legal_raw.get("has_criminal_case", False)
+            data.legal.has_regulatory_investigation = legal_raw.get("has_regulatory_investigation", False)
+            data.legal.major_cases_summary = legal_raw.get("major_cases_summary")
+
+        sh_raw = phase1_data_raw.get("shareholder", {})
+        if sh_raw:
+            data.shareholder.controller_name = sh_raw.get("controller_name")
+            data.shareholder.controller_stake = sh_raw.get("controller_stake")
+            data.shareholder.top10_stake = sh_raw.get("top10_stake")
+            data.shareholder.has_dual_class = sh_raw.get("has_dual_class")
+            data.shareholder.has_trust_nominee = sh_raw.get("has_trust_nominee")
+            data.shareholder.mgmt_stake = sh_raw.get("mgmt_stake")
+
+        # P1-4: 恢复行业专属数据（之前遗漏）
+        ind_raw = phase1_data_raw.get("industry_specific", {})
+        if ind_raw:
+            data.industry_specific.industry_type = ind_raw.get("industry_type")
+            data.industry_specific.data = ind_raw.get("data", {})
+
+    # ═══ 第二步：补充 Phase2 新增数据 ═══
     data.subscription = SubscriptionInfo(
         public_subscription_mult=public_mult,
         intl_placement_mult=intl_mult,
@@ -141,10 +243,22 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
         hsi_volatility=hsi_volatility,
     )
 
-    # P2/P3 新增数据
+    # 恢复市场情绪（如果Phase1已有，Phase2未提供则继承）
+    if phase1_data_raw:
+        sent_raw = phase1_data_raw.get("market_sentiment", {})
+        if hsi_1m_change is None and sent_raw.get("hsi_1m_change") is not None:
+            data.market_sentiment.hsi_1m_change = sent_raw["hsi_1m_change"]
+        if ipo_break_rate_30d is None and sent_raw.get("ipo_break_rate_30d") is not None:
+            data.market_sentiment.ipo_break_rate_30d = sent_raw["ipo_break_rate_30d"]
+        if southbound_flow is None and sent_raw.get("southbound_net_flow") is not None:
+            data.market_sentiment.southbound_net_flow = sent_raw["southbound_net_flow"]
+        if hsi_volatility is None and sent_raw.get("hsi_volatility") is not None:
+            data.market_sentiment.hsi_volatility = sent_raw["hsi_volatility"]
+
+    # ═══ 第三步：构建条件性维度数据（现在 data.valuation 已恢复）═══
     # 暗盘数据
     if grey_market_price is not None:
-        offer_price = data.valuation.final_price if hasattr(data.valuation, 'final_price') else None
+        offer_price = data.valuation.final_price
         gm_premium = None
         if offer_price and offer_price > 0:
             gm_premium = (grey_market_price - offer_price) / offer_price * 100
@@ -165,7 +279,7 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
             a_stock_price=a_stock_price,
             ah_premium=ah_premium,
             a_share_pe=a_share_pe,
-            h_share_pe=data.valuation.pe_ratio if hasattr(data.valuation, 'pe_ratio') else None,
+            h_share_pe=data.valuation.pe_ratio,
         )
 
     # 同批次新股对比
@@ -176,43 +290,6 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
             batch_avg_subscription_mult=batch_avg_mult,
             total_in_batch=batch_total,
         )
-
-    # 从 Phase1 JSON 恢复公司信息
-    if phase1_data_raw:
-        company = phase1_data_raw.get("company", {})
-        data.company.name = company.get("name")
-        data.company.stock_code = company.get("stock_code") or stock_code
-        data.company.industry = company.get("industry")
-        # 恢复其他关键数据
-        val = phase1_data_raw.get("valuation", {})
-        data.valuation.pe_ratio = val.get("pe_ratio")
-        data.valuation.peer_avg_pe = val.get("peer_avg_pe")
-        data.valuation.offer_price_low = val.get("offer_price_low")
-        data.valuation.offer_price_high = val.get("offer_price_high")
-        data.valuation.final_price = val.get("final_price")
-        data.valuation.market_cap = val.get("market_cap")
-        data.valuation.total_shares = val.get("total_shares")
-        fin = phase1_data_raw.get("financial", {})
-        data.financial.revenue_cagr = fin.get("revenue_cagr")
-        data.financial.net_margin = fin.get("net_margin")
-        data.financial.gross_margin = fin.get("gross_margin")
-        data.financial.debt_ratio = fin.get("debt_ratio")
-        data.financial.roe = fin.get("roe")
-        data.financial.net_assets = fin.get("net_assets")
-        # 恢复承销信息（发行规模评估需要）
-        uw = phase1_data_raw.get("underwriting", {})
-        data.underwriting.offer_size = uw.get("offer_size")
-        data.underwriting.sponsor = uw.get("sponsor")
-        # 恢复市场情绪（如果Phase1已有，Phase2未提供则继承）
-        sent_raw = phase1_data_raw.get("market_sentiment", {})
-        if hsi_1m_change is None and sent_raw.get("hsi_1m_change") is not None:
-            data.market_sentiment.hsi_1m_change = sent_raw["hsi_1m_change"]
-        if ipo_break_rate_30d is None and sent_raw.get("ipo_break_rate_30d") is not None:
-            data.market_sentiment.ipo_break_rate_30d = sent_raw["ipo_break_rate_30d"]
-        if southbound_flow is None and sent_raw.get("southbound_net_flow") is not None:
-            data.market_sentiment.southbound_net_flow = sent_raw["southbound_net_flow"]
-        if hsi_volatility is None and sent_raw.get("hsi_volatility") is not None:
-            data.market_sentiment.hsi_volatility = sent_raw["hsi_volatility"]
 
     # 运行全部分析器（含条件性维度）
     all_analyzers = get_phase1_analyzers() + get_phase2_analyzers()

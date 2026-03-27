@@ -8,15 +8,30 @@ from models.ipo_data import IPOData, DimensionScore, SubScore
 
 # 知名保荐人列表及历史表现
 TOP_SPONSORS = {
+    # 国际顶级投行
     "高盛": 85, "Goldman Sachs": 85,
     "摩根士丹利": 85, "Morgan Stanley": 85,
+    "摩根大通": 85, "J.P. Morgan": 85, "JPMorgan": 85,
+    "瑞银": 80, "UBS": 80,
+    "花旗": 78, "Citigroup": 78,
+    "美银": 78, "BofA": 78, "Bank of America": 78,
+    "汇丰": 78, "HSBC": 78,
+    "德银": 72, "Deutsche Bank": 72,
+    "法巴": 72, "BNP Paribas": 72,
+    "野村": 72, "Nomura": 72,
+    "里昂": 72, "CLSA": 72,
+    "星展": 72, "DBS": 72,
+    "Jefferies": 70,
+    # 中资顶级
     "中金": 80, "CICC": 80,
     "华泰": 75, "中信证券": 75, "CITIC": 75,
     "海通国际": 70, "招银国际": 70,
-    "瑞银": 80, "UBS": 80,
-    "花旗": 78, "Citigroup": 78,
-    "美银": 78, "BofA": 78,
-    "摩根大通": 85, "J.P. Morgan": 85, "JPMorgan": 85,
+    "农银国际": 68, "建银国际": 68, "交银国际": 68,
+    "国泰君安国际": 68, "国泰君安": 68,
+    "中泰国际": 65, "国信证券": 65,
+    "光银国际": 65, "兴证国际": 65,
+    # 本地/互联网券商
+    "富途": 60, "Futu": 60,
 }
 
 

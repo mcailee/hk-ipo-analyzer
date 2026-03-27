@@ -1,4 +1,10 @@
-"""港交所披露易爬虫 — 获取 IPO 基本信息。"""
+"""港交所披露易爬虫 — 获取 IPO 基本信息。
+
+⚠️ WIP/STUB: 当前仅实现了基础搜索框架，数据解析不完整。
+实际数据依赖雪球 API + 招股书 PDF 解析。HKEX 接口参数仍需
+根据实际 API 文档校准。_parse_price_range 和 _parse_greenshoe
+为预留方法，尚未接入主流程。
+"""
 
 from __future__ import annotations
 

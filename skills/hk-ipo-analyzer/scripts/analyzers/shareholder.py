@@ -1,4 +1,4 @@
-"""股东构成分析器（3%）。"""
+"""股东构成分析器（1%）。"""
 from __future__ import annotations
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
