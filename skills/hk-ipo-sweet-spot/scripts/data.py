@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""港股打新甜蜜区间分析器 - 数据集模块
+数据来源：东方财富、华盛通、富途牛牛、财联社等公开数据
+字段说明：
+  name: 证券简称 | code: 股票代码 | date: 上市日期
+  subscription_mult: 公开认购倍数 | day1_return: 首日涨跌幅(%)
+  fundraising: 募资额(亿港元) | has_cornerstone: 是否有基石投资者
+  category: 行业分类 | dark_return: 暗盘涨跌幅(%) [可为None]
+  day3_return: 上市后第3日涨跌幅(%) [可为None]
+  day5_return: 上市后第5日涨跌幅(%) [可为None]
+  is_18c: 是否为18C/B类未盈利上市机制 [V3.4新增]
+"""
+
+ipo_data = [
+    # ==================== 2024 H2 (7-12月) ====================
+    # 数据来源：港交所、华盛通、富途、东方财富等公开数据
+    {"name": "如祺出行", "code": "09680", "date": "2024-07-10", "subscription_mult": 0.6, "day1_return": -7.0, "fundraising": 10.0, "has_cornerstone": True, "category": "科技", "dark_return": -10.0, "day3_return": -12.0, "day5_return": -15.0, "is_18c": False},
+    {"name": "方舟健客", "code": "09885", "date": "2024-07-12", "subscription_mult": 5.2, "day1_return": -36.0, "fundraising": 2.5, "has_cornerstone": False, "category": "医疗", "dark_return": -30.0, "day3_return": -40.0, "day5_return": -45.0, "is_18c": False},
+    {"name": "百望股份", "code": "06657", "date": "2024-07-16", "subscription_mult": 12.0, "day1_return": -18.0, "fundraising": 3.0, "has_cornerstone": True, "category": "科技", "dark_return": -15.0, "day3_return": -22.0, "day5_return": -25.0, "is_18c": False},
+    {"name": "经发物业", "code": "02537", "date": "2024-07-16", "subscription_mult": 52.0, "day1_return": 12.0, "fundraising": 1.5, "has_cornerstone": False, "category": "服务", "dark_return": 8.0, "day3_return": 15.0, "day5_return": 20.0, "is_18c": False},
+    {"name": "声通科技", "code": "02527", "date": "2024-07-18", "subscription_mult": 8.0, "day1_return": -22.0, "fundraising": 2.0, "has_cornerstone": False, "category": "AI", "dark_return": -18.0, "day3_return": -25.0, "day5_return": -28.0, "is_18c": False},
+    {"name": "广联科技控股", "code": "02531", "date": "2024-07-23", "subscription_mult": 35.0, "day1_return": 15.0, "fundraising": 1.8, "has_cornerstone": False, "category": "科技", "dark_return": 10.0, "day3_return": 20.0, "day5_return": 25.0, "is_18c": False},
+    {"name": "元续科技", "code": "08637", "date": "2024-07-30", "subscription_mult": 2481.0, "day1_return": -39.26, "fundraising": 0.5, "has_cornerstone": False, "category": "科技", "dark_return": -35.0, "day3_return": -42.0, "day5_return": -50.0, "is_18c": False},
+    {"name": "西锐飞机", "code": "02525", "date": "2024-07-31", "subscription_mult": 18.0, "day1_return": -5.0, "fundraising": 5.0, "has_cornerstone": True, "category": "制造", "dark_return": -3.0, "day3_return": -8.0, "day5_return": -10.0, "is_18c": False},
+    {"name": "黑芝麻智能", "code": "02533", "date": "2024-08-08", "subscription_mult": 15.0, "day1_return": -3.8, "fundraising": 10.0, "has_cornerstone": True, "category": "自动驾驶", "dark_return": -5.0, "day3_return": -8.0, "day5_return": -12.0, "is_18c": True},
+    {"name": "嘀嗒出行", "code": "02559", "date": "2024-08-27", "subscription_mult": 3.5, "day1_return": -10.5, "fundraising": 3.0, "has_cornerstone": False, "category": "科技", "dark_return": -8.0, "day3_return": -15.0, "day5_return": -18.0, "is_18c": False},
+    {"name": "美的集团", "code": "00300", "date": "2024-09-17", "subscription_mult": 5.3, "day1_return": 7.85, "fundraising": 357.0, "has_cornerstone": True, "category": "制造", "dark_return": 5.0, "day3_return": 10.0, "day5_return": 12.0, "is_18c": False},
+    {"name": "地平线机器人-W", "code": "09660", "date": "2024-10-24", "subscription_mult": 125.0, "day1_return": 32.0, "fundraising": 54.0, "has_cornerstone": True, "category": "自动驾驶", "dark_return": 28.0, "day3_return": 35.0, "day5_return": 30.0, "is_18c": False},
+    {"name": "华润饮料", "code": "02460", "date": "2024-10-23", "subscription_mult": 242.0, "day1_return": 15.03, "fundraising": 50.0, "has_cornerstone": True, "category": "消费", "dark_return": 12.0, "day3_return": 18.0, "day5_return": 15.0, "is_18c": False},
+    {"name": "老铺黄金", "code": "06181", "date": "2024-10-30", "subscription_mult": 250.0, "day1_return": 72.84, "fundraising": 12.0, "has_cornerstone": True, "category": "消费", "dark_return": 65.0, "day3_return": 80.0, "day5_return": 85.0, "is_18c": False},
+    {"name": "同源康医药-B", "code": "02410", "date": "2024-10-28", "subscription_mult": 180.0, "day1_return": 45.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医药", "dark_return": 40.0, "day3_return": 50.0, "day5_return": 55.0, "is_18c": True},
+    {"name": "顺丰控股", "code": "06936", "date": "2024-11-27", "subscription_mult": 5.8, "day1_return": 0.0, "fundraising": 58.0, "has_cornerstone": True, "category": "物流", "dark_return": -2.0, "day3_return": -3.0, "day5_return": -5.0, "is_18c": False},
+    {"name": "毛戈平", "code": "01318", "date": "2024-12-10", "subscription_mult": 580.0, "day1_return": 76.51, "fundraising": 22.0, "has_cornerstone": True, "category": "消费", "dark_return": 50.67, "day3_return": 65.0, "day5_return": 55.0, "is_18c": False},
+    {"name": "卡罗特", "code": "02549", "date": "2024-10-02", "subscription_mult": 1347.0, "day1_return": 58.3, "fundraising": 6.0, "has_cornerstone": True, "category": "消费", "dark_return": 50.0, "day3_return": 55.0, "day5_return": 48.0, "is_18c": False},
+    {"name": "经纬天地", "code": "02477", "date": "2024-11-15", "subscription_mult": 380.0, "day1_return": 164.0, "fundraising": 1.2, "has_cornerstone": False, "category": "科技", "dark_return": 130.0, "day3_return": 150.0, "day5_return": 120.0, "is_18c": False},
+    {"name": "泓基集团", "code": "02535", "date": "2024-11-29", "subscription_mult": 420.0, "day1_return": 136.0, "fundraising": 0.8, "has_cornerstone": False, "category": "服务", "dark_return": 168.0, "day3_return": 120.0, "day5_return": 100.0, "is_18c": False},
+    {"name": "晶科电子股份", "code": "02551", "date": "2024-12-11", "subscription_mult": 5678.0, "day1_return": 47.65, "fundraising": 3.5, "has_cornerstone": True, "category": "半导体", "dark_return": 40.0, "day3_return": 45.0, "day5_return": 38.0, "is_18c": False},
+    {"name": "草姬集团", "code": "02593", "date": "2024-12-19", "subscription_mult": 6084.0, "day1_return": 10.4, "fundraising": 0.14, "has_cornerstone": False, "category": "消费", "dark_return": 25.0, "day3_return": -5.0, "day5_return": -26.0, "is_18c": False},
+    {"name": "优博控股", "code": "08529", "date": "2024-12-18", "subscription_mult": 2503.0, "day1_return": 6.0, "fundraising": 0.3, "has_cornerstone": False, "category": "其他", "dark_return": 5.0, "day3_return": -2.0, "day5_return": -10.0, "is_18c": False},
+    {"name": "EDA集团控股", "code": "02505", "date": "2024-10-10", "subscription_mult": 450.0, "day1_return": 48.0, "fundraising": 1.5, "has_cornerstone": False, "category": "科技", "dark_return": 42.0, "day3_return": 45.0, "day5_return": 35.0, "is_18c": False},
+    {"name": "宜搜科技", "code": "02550", "date": "2024-09-26", "subscription_mult": 320.0, "day1_return": 85.0, "fundraising": 1.5, "has_cornerstone": False, "category": "科技", "dark_return": 70.0, "day3_return": 80.0, "day5_return": 65.0, "is_18c": False},
+    {"name": "七牛智能", "code": "02567", "date": "2024-09-20", "subscription_mult": 8.0, "day1_return": -56.73, "fundraising": 2.0, "has_cornerstone": False, "category": "科技", "dark_return": -50.0, "day3_return": -55.0, "day5_return": -60.0, "is_18c": False},
+    {"name": "摩比发展", "code": "02009", "date": "2024-08-02", "subscription_mult": 5.0, "day1_return": -91.67, "fundraising": 0.8, "has_cornerstone": False, "category": "其他", "dark_return": -85.0, "day3_return": -90.0, "day5_return": -92.0, "is_18c": False},
+    {"name": "速腾聚创", "code": "02498", "date": "2024-07-05", "subscription_mult": 0.58, "day1_return": -18.0, "fundraising": 10.0, "has_cornerstone": True, "category": "自动驾驶", "dark_return": -15.0, "day3_return": -20.0, "day5_return": -22.0, "is_18c": True},
+    {"name": "瑞昌国际", "code": "02564", "date": "2024-07-25", "subscription_mult": 25.0, "day1_return": 8.0, "fundraising": 1.5, "has_cornerstone": False, "category": "制造", "dark_return": 5.0, "day3_return": 10.0, "day5_return": 6.0, "is_18c": False},
+    {"name": "晶泰控股-P", "code": "02228", "date": "2024-06-13", "subscription_mult": 330.0, "day1_return": 8.75, "fundraising": 8.0, "has_cornerstone": True, "category": "医药", "dark_return": 5.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": True},
+
+    # ==================== 2025 Q1 (1-3月) ====================
+    {"name": "海螺材料科技", "code": "02560", "date": "2025-01-06", "subscription_mult": 3.5, "day1_return": -47.67, "fundraising": 15.0, "has_cornerstone": False, "category": "材料", "dark_return": -45.0, "day3_return": -52.0, "day5_return": -55.0, "is_18c": False},
+    {"name": "布鲁可", "code": "00325", "date": "2025-01-10", "subscription_mult": 6000.0, "day1_return": 40.85, "fundraising": 18.0, "has_cornerstone": True, "category": "消费", "dark_return": 35.0, "day3_return": 52.0, "day5_return": 48.0, "is_18c": False},
+    {"name": "古茗", "code": "01364", "date": "2025-02-12", "subscription_mult": 189.0, "day1_return": 17.3, "fundraising": 53.5, "has_cornerstone": True, "category": "消费", "dark_return": 15.0, "day3_return": 22.0, "day5_return": 25.0, "is_18c": False},
+    {"name": "蜜雪集团", "code": "02097", "date": "2025-03-03", "subscription_mult": 5258.21, "day1_return": 43.2, "fundraising": 44.0, "has_cornerstone": True, "category": "消费", "dark_return": 26.9, "day3_return": 38.0, "day5_return": 35.0, "is_18c": False},
+    {"name": "赤峰黄金", "code": "02023", "date": "2025-03-10", "subscription_mult": 25.0, "day1_return": 0.0, "fundraising": 48.0, "has_cornerstone": True, "category": "资源", "dark_return": -2.0, "day3_return": 5.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "南山铝业国际", "code": "01982", "date": "2025-03-25", "subscription_mult": 12.5, "day1_return": -3.2, "fundraising": 36.0, "has_cornerstone": True, "category": "材料", "dark_return": -5.0, "day3_return": 2.0, "day5_return": 10.0, "is_18c": False},
+
+    # ==================== 2025 Q2 (4-6月) ====================
+    {"name": "映恩生物-B", "code": "02517", "date": "2025-04-15", "subscription_mult": 380.0, "day1_return": 116.7, "fundraising": 18.0, "has_cornerstone": True, "category": "医药", "dark_return": 95.0, "day3_return": 130.0, "day5_return": 125.0, "is_18c": True},
+    {"name": "佰泽医疗", "code": "02618", "date": "2025-04-22", "subscription_mult": 310.0, "day1_return": 42.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医疗", "dark_return": 38.0, "day3_return": 50.0, "day5_return": 45.0, "is_18c": False},
+    {"name": "云知声", "code": "02072", "date": "2025-04-28", "subscription_mult": 550.0, "day1_return": 44.59, "fundraising": 12.0, "has_cornerstone": True, "category": "AI", "dark_return": 40.0, "day3_return": 55.0, "day5_return": 50.0, "is_18c": False},
+    {"name": "IFBH", "code": "02645", "date": "2025-04-28", "subscription_mult": 420.0, "day1_return": 45.0, "fundraising": 3.5, "has_cornerstone": True, "category": "消费", "dark_return": 42.0, "day3_return": 40.0, "day5_return": 35.0, "is_18c": False},
+    {"name": "沪上阿姨", "code": "02589", "date": "2025-05-08", "subscription_mult": 3617.0, "day1_return": 48.0, "fundraising": 8.0, "has_cornerstone": True, "category": "消费", "dark_return": 45.0, "day3_return": 42.0, "day5_return": 38.0, "is_18c": False},
+    {"name": "宁德时代", "code": "03750", "date": "2025-05-20", "subscription_mult": 151.0, "day1_return": 16.0, "fundraising": 410.0, "has_cornerstone": True, "category": "新能源", "dark_return": 12.0, "day3_return": 18.0, "day5_return": 20.0, "is_18c": False},
+    {"name": "恒瑞医药", "code": "04508", "date": "2025-05-20", "subscription_mult": 85.0, "day1_return": 32.0, "fundraising": 68.0, "has_cornerstone": True, "category": "医药", "dark_return": 28.0, "day3_return": 35.0, "day5_return": 30.0, "is_18c": False},
+    {"name": "海天味业", "code": "06099", "date": "2025-05-20", "subscription_mult": 45.0, "day1_return": 0.6, "fundraising": 72.0, "has_cornerstone": True, "category": "消费", "dark_return": -1.0, "day3_return": 2.0, "day5_return": 3.0, "is_18c": False},
+    {"name": "钧达股份", "code": "06626", "date": "2025-05-20", "subscription_mult": 32.0, "day1_return": 18.0, "fundraising": 25.0, "has_cornerstone": True, "category": "新能源", "dark_return": 15.0, "day3_return": 12.0, "day5_return": 10.0, "is_18c": False},
+    {"name": "派格生物医药-B", "code": "02576", "date": "2025-05-27", "subscription_mult": 920.0, "day1_return": 65.0, "fundraising": 6.0, "has_cornerstone": True, "category": "医药", "dark_return": 58.0, "day3_return": 80.0, "day5_return": 95.0, "is_18c": True},
+    {"name": "双登股份", "code": "02554", "date": "2025-05-27", "subscription_mult": 1050.0, "day1_return": 28.0, "fundraising": 18.0, "has_cornerstone": True, "category": "新能源", "dark_return": 22.0, "day3_return": 25.0, "day5_return": 20.0, "is_18c": False},
+    {"name": "三花智控", "code": "02050", "date": "2025-06-03", "subscription_mult": 38.0, "day1_return": -5.0, "fundraising": 108.0, "has_cornerstone": True, "category": "制造", "dark_return": -8.0, "day3_return": -3.0, "day5_return": 0.0, "is_18c": False},
+    {"name": "容大科技", "code": "02503", "date": "2025-06-10", "subscription_mult": 276.0, "day1_return": 42.0, "fundraising": 3.0, "has_cornerstone": True, "category": "制造", "dark_return": 35.0, "day3_return": 38.0, "day5_return": 32.0, "is_18c": False},
+    {"name": "新琪安", "code": "02544", "date": "2025-06-10", "subscription_mult": 149.0, "day1_return": 20.0, "fundraising": 2.5, "has_cornerstone": True, "category": "化工", "dark_return": 18.0, "day3_return": 15.0, "day5_return": 12.0, "is_18c": False},
+    {"name": "MetaLight", "code": "02605", "date": "2025-06-10", "subscription_mult": 270.0, "day1_return": -30.0, "fundraising": 4.0, "has_cornerstone": False, "category": "科技", "dark_return": -25.0, "day3_return": -35.0, "day5_return": -40.0, "is_18c": False},
+    {"name": "吉宏股份", "code": "06618", "date": "2025-06-10", "subscription_mult": 68.0, "day1_return": 15.0, "fundraising": 12.0, "has_cornerstone": True, "category": "消费", "dark_return": 12.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "周六福", "code": "02598", "date": "2025-06-16", "subscription_mult": 480.0, "day1_return": 8.0, "fundraising": 15.0, "has_cornerstone": True, "category": "消费", "dark_return": 5.0, "day3_return": 6.0, "day5_return": 3.0, "is_18c": False},
+    {"name": "药捷安康-B", "code": "02617", "date": "2025-06-23", "subscription_mult": 1200.0, "day1_return": 78.71, "fundraising": 8.0, "has_cornerstone": True, "category": "医药", "dark_return": 70.0, "day3_return": 100.0, "day5_return": 120.0, "is_18c": True},
+
+    # ==================== 2025 Q3 (7-9月) ====================
+    {"name": "拔康视云-B", "code": "02592", "date": "2025-07-15", "subscription_mult": 180.0, "day1_return": -39.0, "fundraising": 8.0, "has_cornerstone": False, "category": "医药", "dark_return": -32.0, "day3_return": -42.0, "day5_return": -45.0, "is_18c": True},
+    {"name": "维立志博", "code": "02608", "date": "2025-08-04", "subscription_mult": 1500.0, "day1_return": 95.0, "fundraising": 4.0, "has_cornerstone": True, "category": "医药", "dark_return": 85.0, "day3_return": 110.0, "day5_return": 105.0, "is_18c": True},
+    {"name": "中慧生物-B", "code": "02609", "date": "2025-08-11", "subscription_mult": 1800.0, "day1_return": 158.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医药", "dark_return": 140.0, "day3_return": 170.0, "day5_return": 160.0, "is_18c": True},
+    {"name": "银诺医药-B", "code": "02591", "date": "2025-08-15", "subscription_mult": 5341.66, "day1_return": 206.5, "fundraising": 4.0, "has_cornerstone": True, "category": "医药", "dark_return": 180.0, "day3_return": 220.0, "day5_return": 200.0, "is_18c": True},
+    {"name": "佳鑫国际资源", "code": "02612", "date": "2025-08-28", "subscription_mult": 4200.0, "day1_return": 177.8, "fundraising": 3.0, "has_cornerstone": False, "category": "资源", "dark_return": 160.0, "day3_return": 150.0, "day5_return": 130.0, "is_18c": False},
+    {"name": "劲方医药", "code": "02610", "date": "2025-09-05", "subscription_mult": 1300.0, "day1_return": 55.0, "fundraising": 6.0, "has_cornerstone": True, "category": "医药", "dark_return": 48.0, "day3_return": 60.0, "day5_return": 55.0, "is_18c": True},
+    {"name": "大行科工", "code": "02543", "date": "2025-09-09", "subscription_mult": 7558.4, "day1_return": 14.9, "fundraising": 3.92, "has_cornerstone": False, "category": "制造", "dark_return": 10.0, "day3_return": 8.0, "day5_return": -5.0, "is_18c": False},
+    {"name": "健康160", "code": "02538", "date": "2025-09-17", "subscription_mult": 880.0, "day1_return": 35.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医疗", "dark_return": 30.0, "day3_return": 40.0, "day5_return": 38.0, "is_18c": False},
+    {"name": "禾赛-W", "code": "02602", "date": "2025-09-22", "subscription_mult": 620.0, "day1_return": 22.0, "fundraising": 35.0, "has_cornerstone": True, "category": "科技", "dark_return": 18.0, "day3_return": 25.0, "day5_return": 20.0, "is_18c": False},
+    {"name": "奇瑞汽车", "code": "06622", "date": "2025-09-25", "subscription_mult": 55.0, "day1_return": 12.0, "fundraising": 95.0, "has_cornerstone": True, "category": "汽车", "dark_return": 8.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "西普尼", "code": "02583", "date": "2025-09-30", "subscription_mult": 4500.0, "day1_return": 258.1, "fundraising": 2.0, "has_cornerstone": False, "category": "消费", "dark_return": 230.0, "day3_return": 200.0, "day5_return": 160.0, "is_18c": False},
+
+    # ==================== 2025 Q4 (10-12月) ====================
+    {"name": "长风药业", "code": "02652", "date": "2025-10-08", "subscription_mult": 6697.8, "day1_return": 161.0, "fundraising": 4.0, "has_cornerstone": True, "category": "医药", "dark_return": 145.0, "day3_return": 175.0, "day5_return": 165.0, "is_18c": False},
+    {"name": "金叶国际集团", "code": "08549", "date": "2025-10-10", "subscription_mult": 11464.7, "day1_return": 330.0, "fundraising": 0.5, "has_cornerstone": False, "category": "消费", "dark_return": 900.0, "day3_return": 200.0, "day5_return": 100.0, "is_18c": False},
+    {"name": "挚达科技", "code": "02650", "date": "2025-10-10", "subscription_mult": 5440.0, "day1_return": 192.1, "fundraising": 3.0, "has_cornerstone": True, "category": "新能源", "dark_return": 175.0, "day3_return": 180.0, "day5_return": 160.0, "is_18c": False},
+    {"name": "轩竹生物-B", "code": "02575", "date": "2025-10-15", "subscription_mult": 1650.0, "day1_return": 72.0, "fundraising": 6.0, "has_cornerstone": True, "category": "医药", "dark_return": 65.0, "day3_return": 85.0, "day5_return": 90.0, "is_18c": True},
+    {"name": "云迹", "code": "02614", "date": "2025-10-16", "subscription_mult": 5657.2, "day1_return": 26.0, "fundraising": 5.0, "has_cornerstone": True, "category": "机器人", "dark_return": 20.0, "day3_return": 22.0, "day5_return": 18.0, "is_18c": False},
+    {"name": "滴普科技", "code": "02645", "date": "2025-10-28", "subscription_mult": 7569.8, "day1_return": 150.6, "fundraising": 4.0, "has_cornerstone": True, "category": "AI", "dark_return": 135.0, "day3_return": 160.0, "day5_return": 145.0, "is_18c": False},
+    {"name": "宝济药业-B", "code": "02659", "date": "2025-11-04", "subscription_mult": 2200.0, "day1_return": 85.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医药", "dark_return": 75.0, "day3_return": 90.0, "day5_return": 80.0, "is_18c": True},
+    {"name": "赛力斯", "code": "09927", "date": "2025-11-05", "subscription_mult": 133.0, "day1_return": -3.0, "fundraising": 140.0, "has_cornerstone": True, "category": "汽车", "dark_return": -5.0, "day3_return": -2.0, "day5_return": 0.0, "is_18c": False},
+    {"name": "小马智行", "code": "06625", "date": "2025-11-06", "subscription_mult": 42.0, "day1_return": -9.28, "fundraising": 77.0, "has_cornerstone": True, "category": "自动驾驶", "dark_return": -12.0, "day3_return": -8.0, "day5_return": -5.0, "is_18c": False},
+    {"name": "文远知行", "code": "06629", "date": "2025-11-06", "subscription_mult": 38.0, "day1_return": -9.96, "fundraising": 55.0, "has_cornerstone": True, "category": "自动驾驶", "dark_return": -12.0, "day3_return": -7.0, "day5_return": -5.0, "is_18c": False},
+    {"name": "均胜电子", "code": "06632", "date": "2025-11-06", "subscription_mult": 28.0, "day1_return": -8.0, "fundraising": 45.0, "has_cornerstone": True, "category": "汽车", "dark_return": -10.0, "day3_return": -5.0, "day5_return": -3.0, "is_18c": False},
+    {"name": "旺山旺水-B", "code": "02630", "date": "2025-11-06", "subscription_mult": 6238.4, "day1_return": 145.7, "fundraising": 4.0, "has_cornerstone": True, "category": "医药", "dark_return": 130.0, "day3_return": 155.0, "day5_return": 140.0, "is_18c": True},
+    {"name": "量化派", "code": "02685", "date": "2025-11-27", "subscription_mult": 9366.3, "day1_return": 88.8, "fundraising": 2.0, "has_cornerstone": False, "category": "科技", "dark_return": 75.0, "day3_return": 70.0, "day5_return": 55.0, "is_18c": False},
+    {"name": "乐摩科技", "code": "02539", "date": "2025-12-03", "subscription_mult": 7324.3, "day1_return": 36.3, "fundraising": 3.0, "has_cornerstone": True, "category": "消费", "dark_return": 30.0, "day3_return": 28.0, "day5_return": 20.0, "is_18c": False},
+    {"name": "金岩高岭新材", "code": "02540", "date": "2025-12-03", "subscription_mult": 6876.2, "day1_return": 2.2, "fundraising": 1.5, "has_cornerstone": False, "category": "材料", "dark_return": -5.0, "day3_return": -10.0, "day5_return": -15.0, "is_18c": False},
+    {"name": "希迪智驾", "code": "03881", "date": "2025-12-19", "subscription_mult": 220.0, "day1_return": -15.0, "fundraising": 8.0, "has_cornerstone": False, "category": "自动驾驶", "dark_return": -18.0, "day3_return": -20.0, "day5_return": -22.0, "is_18c": False},
+    {"name": "智汇矿业", "code": "02546", "date": "2025-12-19", "subscription_mult": 160.0, "day1_return": 140.0, "fundraising": 2.0, "has_cornerstone": True, "category": "资源", "dark_return": 120.0, "day3_return": 130.0, "day5_return": 110.0, "is_18c": False},
+    {"name": "明基医院", "code": "02581", "date": "2025-12-22", "subscription_mult": 15.0, "day1_return": -49.46, "fundraising": 6.0, "has_cornerstone": False, "category": "医疗", "dark_return": -45.0, "day3_return": -50.0, "day5_return": -55.0, "is_18c": False},
+    {"name": "印象大红袍", "code": "02695", "date": "2025-12-22", "subscription_mult": 8.0, "day1_return": -35.28, "fundraising": 1.3, "has_cornerstone": False, "category": "文旅", "dark_return": -30.0, "day3_return": -38.0, "day5_return": -40.0, "is_18c": False},
+    {"name": "华芢生物-B", "code": "02396", "date": "2025-12-22", "subscription_mult": 792.0, "day1_return": -29.32, "fundraising": 6.0, "has_cornerstone": False, "category": "医药", "dark_return": -25.0, "day3_return": -32.0, "day5_return": -35.0, "is_18c": True},
+    {"name": "南华期货", "code": "02691", "date": "2025-12-22", "subscription_mult": 22.0, "day1_return": -24.17, "fundraising": 13.0, "has_cornerstone": True, "category": "金融", "dark_return": -20.0, "day3_return": -25.0, "day5_return": -28.0, "is_18c": False},
+    {"name": "诺比侃", "code": "02635", "date": "2025-12-23", "subscription_mult": 3500.0, "day1_return": 363.75, "fundraising": 3.03, "has_cornerstone": True, "category": "AI", "dark_return": 275.75, "day3_return": 320.0, "day5_return": 280.0, "is_18c": False},
+    {"name": "轻松健康", "code": "02661", "date": "2025-12-23", "subscription_mult": 2800.0, "day1_return": 158.8, "fundraising": 6.0, "has_cornerstone": True, "category": "医疗", "dark_return": 127.95, "day3_return": 145.0, "day5_return": 130.0, "is_18c": False},
+    {"name": "翰思艾泰-B", "code": "03378", "date": "2025-12-23", "subscription_mult": 3000.0, "day1_return": -46.25, "fundraising": 5.0, "has_cornerstone": False, "category": "医药", "dark_return": 2.06, "day3_return": -50.0, "day5_return": -55.0, "is_18c": True},
+    {"name": "迅策", "code": "03317", "date": "2025-12-30", "subscription_mult": 650.0, "day1_return": 15.0, "fundraising": 11.0, "has_cornerstone": True, "category": "科技", "dark_return": 12.0, "day3_return": 18.0, "day5_return": 15.0, "is_18c": False},
+    {"name": "英矽智能", "code": "03696", "date": "2025-12-30", "subscription_mult": 820.0, "day1_return": 8.0, "fundraising": 23.0, "has_cornerstone": True, "category": "AI", "dark_return": 5.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "卧安机器人", "code": "06600", "date": "2025-12-30", "subscription_mult": 1100.0, "day1_return": 25.0, "fundraising": 16.0, "has_cornerstone": True, "category": "机器人", "dark_return": 20.0, "day3_return": 22.0, "day5_return": 18.0, "is_18c": False},
+    {"name": "五一视界", "code": "06651", "date": "2025-12-30", "subscription_mult": 480.0, "day1_return": 12.0, "fundraising": 7.0, "has_cornerstone": True, "category": "科技", "dark_return": 8.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "林清轩", "code": "02657", "date": "2025-12-30", "subscription_mult": 350.0, "day1_return": 18.0, "fundraising": 11.0, "has_cornerstone": True, "category": "消费", "dark_return": 15.0, "day3_return": 20.0, "day5_return": 16.0, "is_18c": False},
+    {"name": "美联股份", "code": "02671", "date": "2025-12-30", "subscription_mult": 65.0, "day1_return": -12.0, "fundraising": 1.8, "has_cornerstone": False, "category": "服务", "dark_return": -15.0, "day3_return": -18.0, "day5_return": -20.0, "is_18c": False},
+
+    # ==================== 2026 Q1 (1-3月) ====================
+    {"name": "壁仞科技", "code": "06082", "date": "2026-01-02", "subscription_mult": 2347.53, "day1_return": 75.0, "fundraising": 56.0, "has_cornerstone": True, "category": "AI", "dark_return": 79.69, "day3_return": 65.0, "day5_return": 60.0, "is_18c": False},
+    {"name": "智谱", "code": "02513", "date": "2026-01-08", "subscription_mult": 1159.46, "day1_return": 38.0, "fundraising": 43.5, "has_cornerstone": True, "category": "AI", "dark_return": 32.0, "day3_return": 42.0, "day5_return": 38.0, "is_18c": False},
+    {"name": "天数智芯", "code": "09903", "date": "2026-01-08", "subscription_mult": 980.0, "day1_return": 28.0, "fundraising": 37.0, "has_cornerstone": True, "category": "AI", "dark_return": 22.0, "day3_return": 30.0, "day5_return": 25.0, "is_18c": False},
+    {"name": "精锋医疗-B", "code": "02675", "date": "2026-01-08", "subscription_mult": 1091.94, "day1_return": 32.0, "fundraising": 12.0, "has_cornerstone": True, "category": "医疗", "dark_return": 28.0, "day3_return": 35.0, "day5_return": 30.0, "is_18c": True},
+    {"name": "MINIMAX-WP", "code": "00100", "date": "2026-01-09", "subscription_mult": 1837.17, "day1_return": 109.09, "fundraising": 48.0, "has_cornerstone": True, "category": "AI", "dark_return": 95.0, "day3_return": 100.0, "day5_return": 90.0, "is_18c": True},
+    {"name": "瑞博生物-B", "code": "06938", "date": "2026-01-09", "subscription_mult": 720.0, "day1_return": 41.0, "fundraising": 18.0, "has_cornerstone": True, "category": "医药", "dark_return": 35.0, "day3_return": 45.0, "day5_return": 40.0, "is_18c": True},
+    {"name": "金浔资源", "code": "03636", "date": "2026-01-09", "subscription_mult": 350.0, "day1_return": 15.0, "fundraising": 11.0, "has_cornerstone": True, "category": "资源", "dark_return": 10.0, "day3_return": 12.0, "day5_return": 10.0, "is_18c": False},
+    {"name": "豪威集团", "code": "00501", "date": "2026-01-12", "subscription_mult": 180.0, "day1_return": 16.22, "fundraising": 48.0, "has_cornerstone": True, "category": "半导体", "dark_return": 12.0, "day3_return": 18.0, "day5_return": 15.0, "is_18c": False},
+    {"name": "兆易创新", "code": "03986", "date": "2026-01-13", "subscription_mult": 620.0, "day1_return": 37.53, "fundraising": 47.0, "has_cornerstone": True, "category": "半导体", "dark_return": 30.0, "day3_return": 40.0, "day5_return": 35.0, "is_18c": False},
+    {"name": "红星冷链", "code": "01641", "date": "2026-01-13", "subscription_mult": 95.0, "day1_return": 0.33, "fundraising": 2.85, "has_cornerstone": True, "category": "物流", "dark_return": -2.0, "day3_return": 2.0, "day5_return": 0.0, "is_18c": False},
+    {"name": "BBSB INTL", "code": "08610", "date": "2026-01-13", "subscription_mult": 10200.0, "day1_return": 11.67, "fundraising": 0.75, "has_cornerstone": False, "category": "其他", "dark_return": 8.0, "day3_return": 5.0, "day5_return": -5.0, "is_18c": False},
+    {"name": "龙旗科技", "code": "09611", "date": "2026-01-22", "subscription_mult": 280.0, "day1_return": 3.55, "fundraising": 16.0, "has_cornerstone": True, "category": "科技", "dark_return": 2.0, "day3_return": 5.0, "day5_return": 3.0, "is_18c": False},
+    {"name": "鸣鸣很忙", "code": "01768", "date": "2026-01-28", "subscription_mult": 1853.0, "day1_return": 69.06, "fundraising": 37.0, "has_cornerstone": True, "category": "消费", "dark_return": 60.0, "day3_return": 72.0, "day5_return": 65.0, "is_18c": False},
+    {"name": "东鹏饮料", "code": "09980", "date": "2026-02-03", "subscription_mult": 48.0, "day1_return": 1.53, "fundraising": 101.0, "has_cornerstone": True, "category": "消费", "dark_return": 0.0, "day3_return": 3.0, "day5_return": 2.0, "is_18c": False},
+    {"name": "国恩科技", "code": "02768", "date": "2026-02-04", "subscription_mult": 320.0, "day1_return": 11.56, "fundraising": 11.0, "has_cornerstone": True, "category": "材料", "dark_return": 8.0, "day3_return": 12.0, "day5_return": 10.0, "is_18c": False},
+    {"name": "牧原股份", "code": "02714", "date": "2026-02-06", "subscription_mult": 35.0, "day1_return": 3.9, "fundraising": 107.0, "has_cornerstone": True, "category": "农业", "dark_return": 2.0, "day3_return": 5.0, "day5_return": 3.0, "is_18c": False},
+    {"name": "大族数控", "code": "03200", "date": "2026-02-06", "subscription_mult": 280.0, "day1_return": 14.82, "fundraising": 48.0, "has_cornerstone": True, "category": "制造", "dark_return": 10.0, "day3_return": 16.0, "day5_return": 12.0, "is_18c": False},
+    {"name": "卓正医疗", "code": "02677", "date": "2026-02-06", "subscription_mult": 450.0, "day1_return": 13.36, "fundraising": 2.85, "has_cornerstone": True, "category": "医疗", "dark_return": 10.0, "day3_return": 15.0, "day5_return": 12.0, "is_18c": False},
+    {"name": "澜起科技", "code": "06809", "date": "2026-02-09", "subscription_mult": 520.0, "day1_return": 63.72, "fundraising": 70.0, "has_cornerstone": True, "category": "半导体", "dark_return": 39.77, "day3_return": 68.0, "day5_return": 60.0, "is_18c": False},
+    {"name": "乐欣户外", "code": "02720", "date": "2026-02-10", "subscription_mult": 1580.0, "day1_return": 102.29, "fundraising": 3.5, "has_cornerstone": True, "category": "消费", "dark_return": 99.84, "day3_return": 110.0, "day5_return": 100.0, "is_18c": False},
+    {"name": "爱芯元智", "code": "00600", "date": "2026-02-10", "subscription_mult": 380.0, "day1_return": 0.0, "fundraising": 30.0, "has_cornerstone": True, "category": "AI", "dark_return": -4.18, "day3_return": -5.0, "day5_return": -10.0, "is_18c": False},
+    {"name": "先导智能", "code": "00470", "date": "2026-02-11", "subscription_mult": 42.0, "day1_return": 0.0, "fundraising": 49.0, "has_cornerstone": True, "category": "制造", "dark_return": 1.09, "day3_return": -2.0, "day5_return": -3.0, "is_18c": False},
+    {"name": "沃尔核材", "code": "09981", "date": "2026-02-13", "subscription_mult": 85.0, "day1_return": 2.94, "fundraising": 28.0, "has_cornerstone": True, "category": "新能源", "dark_return": 4.93, "day3_return": 0.0, "day5_return": -2.0, "is_18c": False},
+    {"name": "海致科技集团", "code": "02706", "date": "2026-02-13", "subscription_mult": 2150.0, "day1_return": 242.2, "fundraising": 7.6, "has_cornerstone": True, "category": "AI", "dark_return": 210.42, "day3_return": 200.0, "day5_return": 180.0, "is_18c": False},
+    {"name": "埃斯顿", "code": "02715", "date": "2026-03-09", "subscription_mult": 120.0, "day1_return": -16.02, "fundraising": 15.0, "has_cornerstone": True, "category": "机器人", "dark_return": -7.55, "day3_return": -20.0, "day5_return": -22.0, "is_18c": False},
+    {"name": "兆威机电", "code": "02692", "date": "2026-03-09", "subscription_mult": 280.0, "day1_return": 2.41, "fundraising": 19.0, "has_cornerstone": True, "category": "制造", "dark_return": 17.99, "day3_return": 0.0, "day5_return": -5.0, "is_18c": False},
+    {"name": "优乐赛共享", "code": "02649", "date": "2026-03-09", "subscription_mult": 5297.0, "day1_return": -43.64, "fundraising": 2.2, "has_cornerstone": False, "category": "服务", "dark_return": 27.27, "day3_return": -50.0, "day5_return": -60.0, "is_18c": False},
+    {"name": "美格智能", "code": "03268", "date": "2026-03-10", "subscription_mult": 160.0, "day1_return": 1.52, "fundraising": 12.0, "has_cornerstone": True, "category": "科技", "dark_return": 1.87, "day3_return": -5.0, "day5_return": -10.0, "is_18c": False},
+    {"name": "广合科技", "code": "01989", "date": "2026-03-20", "subscription_mult": 340.0, "day1_return": 33.56, "fundraising": 33.0, "has_cornerstone": True, "category": "制造", "dark_return": 32.16, "day3_return": 35.0, "day5_return": 30.0, "is_18c": False},
+    {"name": "国民技术", "code": "02701", "date": "2026-03-23", "subscription_mult": 195.0, "day1_return": 4.17, "fundraising": 10.0, "has_cornerstone": True, "category": "半导体", "dark_return": 8.33, "day3_return": 5.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "飞速创新", "code": "03355", "date": "2026-03-23", "subscription_mult": 650.0, "day1_return": 13.46, "fundraising": 17.0, "has_cornerstone": True, "category": "科技", "dark_return": 46.39, "day3_return": 15.0, "day5_return": 10.0, "is_18c": False},
+    {"name": "凯乐士科技", "code": "02729", "date": "2026-03-24", "subscription_mult": 2154.0, "day1_return": 84.27, "fundraising": 6.0, "has_cornerstone": True, "category": "机器人", "dark_return": 83.19, "day3_return": 90.0, "day5_return": 85.0, "is_18c": False},
+    {"name": "泽景股份", "code": "02632", "date": "2026-03-24", "subscription_mult": 85.0, "day1_return": -36.92, "fundraising": 7.2, "has_cornerstone": True, "category": "汽车", "dark_return": 12.67, "day3_return": -30.0, "day5_return": -25.0, "is_18c": False},
+]
+
+# ============================================
+# 恒生指数月度涨跌幅 (%)
+# 数据来源：港交所 HKEX 2024 Fact Book 及公开行情数据
+# 用途：市场状态分类（牛/熊/震荡）
+# ============================================
+hsi_monthly = {
+    # 2024年（港交所官方数据）
+    "2024-01": -1.16,
+    "2024-02": 6.20,
+    "2024-03": 3.75,
+    "2024-04": 2.98,
+    "2024-05": 4.61,
+    "2024-06": -2.07,
+    "2024-07": -4.05,
+    "2024-08": 1.98,
+    "2024-09": -1.32,
+    "2024-10": 19.13,
+    "2024-11": -6.38,
+    "2024-12": 3.03,
+    # 2025年
+    "2025-01": -0.8,
+    "2025-02": 13.4,
+    "2025-03": 0.8,
+    "2025-04": 5.2,
+    "2025-05": 3.8,
+    "2025-06": 1.5,
+    "2025-07": -2.1,
+    "2025-08": 4.3,
+    "2025-09": 6.5,
+    "2025-10": 8.2,
+    "2025-11": -3.5,
+    "2025-12": 2.8,
+    # 2026年
+    "2026-01": 5.6,
+    "2026-02": 3.2,
+    "2026-03": -5.7,
+}

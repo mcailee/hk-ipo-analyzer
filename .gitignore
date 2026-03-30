@@ -25,3 +25,6 @@ Thumbs.db
 # Output (runtime generated)
 output/
 *.png
+
+# Data cache
+fetch_cache/
