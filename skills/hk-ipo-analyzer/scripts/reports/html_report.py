@@ -130,6 +130,42 @@ def generate_html_report(report: FinalReport,
             "methodology": a.methodology,
         }
 
+    # 打新策略推荐（P4 新增）
+    strategy_data = None
+    if report.strategy and report.strategy.recommended_strategy:
+        s = report.strategy
+        accounts_list = []
+        for acct in s.accounts:
+            accounts_list.append({
+                "account_id": acct.account_id,
+                "group": "甲组" if acct.group == "A" else "乙组",
+                "hands": acct.subscription_hands,
+                "financing_label": f"{acct.financing_mult:.0f}倍孖展" if acct.financing_mult > 0 else "现金",
+                "own_capital": acct.own_capital,
+                "financing_cost": acct.financing_cost,
+                "winning_hands": acct.expected_winning_hands,
+                "net_profit": acct.expected_net_profit,
+                "roi": acct.roi,
+            })
+        strategy_data = {
+            "investor_tier_label": s.investor_tier_label,
+            "total_capital": s.total_capital,
+            "num_accounts": s.num_accounts,
+            "strategy_label": s.strategy_label,
+            "strategy_rationale": s.strategy_rationale,
+            "group_a_one_hand_rate": s.group_a_sim.one_hand_rate if s.group_a_sim else None,
+            "group_b_alloc_rate": s.group_b_sim.allocation_rate if s.group_b_sim else None,
+            "accounts": accounts_list,
+            "total_own_capital": s.total_own_capital,
+            "total_financing_cost": s.total_financing_cost,
+            "total_net_profit": s.total_expected_net_profit,
+            "overall_roi": s.overall_roi,
+            "annualized_roi": s.capital_efficiency_annualized,
+            "breakeven_return": s.breakeven_return,
+            "max_loss": s.max_loss_scenario,
+            "methodology": s.methodology,
+        }
+
     # 渲染
     html = template.render(
         report=report,
@@ -141,6 +177,7 @@ def generate_html_report(report: FinalReport,
         sell_timing=sell_timing_data,
         probability=probability_data,
         allotment=allotment_data,
+        strategy=strategy_data,
     )
 
     # 保存

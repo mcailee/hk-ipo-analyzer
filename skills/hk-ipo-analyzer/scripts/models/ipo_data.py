@@ -65,6 +65,75 @@ class AllotmentEstimate:
     methodology: str = ""
 
 
+# ── 打新策略引擎数据模型 ─────────────────────────────────
+
+@dataclass
+class AccountAllocation:
+    """单账户分配方案。"""
+    account_id: int = 0                         # 账户编号
+    group: str = "A"                            # "A"(甲组) / "B"(乙组)
+    subscription_hands: int = 0                 # 认购手数
+    subscription_amount: float = 0              # 认购金额 (HKD)
+    own_capital: float = 0                      # 自有资金 (HKD)
+    financing_amount: float = 0                 # 融资金额 (HKD)
+    financing_mult: float = 0                   # 融资倍数 (0=现金, 10=10倍孖展)
+    financing_cost: float = 0                   # 融资利息成本 (HKD)
+    total_cost: float = 0                       # 总成本 (自有资金 + 利息)
+    expected_winning_hands: float = 0           # 预期中签手数
+    expected_profit: float = 0                  # 预期收益 (HKD，扣除成本前)
+    expected_net_profit: float = 0              # 预期净收益 (HKD，扣除利息)
+    roi: float = 0                              # 投资回报率 (%)
+
+
+@dataclass
+class GroupSimulation:
+    """单组别分配模拟结果。"""
+    group: str = "A"                            # "A" / "B"
+    total_pool_shares: Optional[float] = None   # 该组分配总股数
+    total_applicants_est: Optional[float] = None  # 预估申请人数
+    allocation_rate: Optional[float] = None     # 中签率 (%)
+    one_hand_rate: Optional[float] = None       # 一手中签率 (%，仅甲组有意义)
+    hands_allocated: Optional[float] = None     # 预期分配手数
+    methodology: str = ""
+
+
+@dataclass
+class StrategyRecommendation:
+    """打新策略完整推荐。"""
+    # 投资者画像
+    investor_tier: str = ""                     # "retail_small"/"retail_mid"/"whale"/"ultra_whale"
+    investor_tier_label: str = ""               # "小散"/"中户"/"大户"/"超大户"
+    total_capital: float = 0                    # 可用总资金 (HKD)
+    num_accounts: int = 1                       # 可用账户数
+
+    # 甲组/乙组分配模拟
+    group_a_sim: Optional[GroupSimulation] = None
+    group_b_sim: Optional[GroupSimulation] = None
+
+    # 最优策略
+    recommended_strategy: str = ""              # "A_only"/"B_only"/"AB_dual"/"multi_A"/"multi_A_plus_B"
+    strategy_label: str = ""                    # 策略中文标签
+    strategy_rationale: str = ""                # 策略推荐理由
+
+    # 各账户分配明细
+    accounts: list[AccountAllocation] = field(default_factory=list)
+
+    # 汇总数据
+    total_subscription_amount: float = 0        # 总认购金额 (HKD)
+    total_own_capital: float = 0                # 总自有资金 (HKD)
+    total_financing_cost: float = 0             # 总融资成本 (HKD)
+    total_expected_profit: float = 0            # 总预期收益 (HKD)
+    total_expected_net_profit: float = 0        # 总预期净收益 (HKD)
+    overall_roi: float = 0                      # 综合回报率 (%)
+    capital_efficiency_annualized: float = 0    # 年化资金效率 (%)
+
+    # 风控
+    max_loss_scenario: float = 0                # 最大亏损情景 (HKD)
+    breakeven_return: float = 0                 # 盈亏平衡所需涨幅 (%)
+
+    methodology: str = ""
+
+
 @dataclass
 class FinalReport:
     """最终报告。"""
@@ -85,6 +154,7 @@ class FinalReport:
     exit_strategy: Optional[str] = None         # 卖出策略建议文本
     probability: Optional[ProbabilityEstimate] = None  # 预测概率区间
     allotment: Optional[AllotmentEstimate] = None      # 中签率估算
+    strategy: Optional[StrategyRecommendation] = None  # 打新策略推荐
 
 
 # ── IPO 数据 ─────────────────────────────────────────────
@@ -103,6 +173,9 @@ class CompanyInfo:
     employee_count: Optional[int] = None
     market_position: Optional[str] = None
     management_background: Optional[str] = None
+    # v5.0 新增
+    is_18c: bool = False                            # 是否18C章节上市（未盈利科技公司）
+    chapter: Optional[str] = None                   # 上市章节："18C"/"18A"/"主板"/"GEM"
 
 
 @dataclass

@@ -351,3 +351,77 @@ allotment:
   freeze_days: 5
   brokerage_fee_rate: 0.001
   financing_rate_annual: 0.05
+
+# ── 打新策略引擎配置 ──────────────────────────────────────
+strategy:
+  # 甲组（Group A）参数
+  group_a:
+    max_amount: 5000000          # 甲组上限 500万港元
+    # 甲组分配原则：优先保证一人一手，剩余按递增手数分配
+    priority_one_hand: true      # 是否优先保证一人一手
+    # 甲头（最大化甲组申购额）阈值 — 认购倍数超过此值时建议甲头
+    top_mult_threshold: 50
+
+  # 乙组（Group B）参数
+  group_b:
+    min_amount: 5000001          # 乙组下限 500万零1港元
+    # 乙组分配原则：按申购金额比例分配
+    allocation_method: "proportional"
+
+  # 回拨机制阈值（机制A）
+  clawback:
+    # [认购倍数阈值, 公开发售占比]
+    tiers:
+      - [15, 0.30]     # 15倍 → 30%
+      - [50, 0.40]     # 50倍 → 40%
+      - [100, 0.50]    # 100倍 → 50%
+    default_public_ratio: 0.10   # 默认公开发售占比 10%
+
+  # 融资(孖展)利率分档 — [融资倍数, 年化利率]
+  financing_tiers:
+    - [0,  0.00]    # 现金认购，无利息
+    - [1,  0.038]   # 1倍孖展 3.8%
+    - [5,  0.042]   # 5倍孖展 4.2%
+    - [10, 0.048]   # 10倍孖展 4.8%
+    - [20, 0.055]   # 20倍孖展 5.5%
+
+  # 投资者资金量级定义 — [最低资金(HKD), 最高资金(HKD), 标签, 英文标识]
+  investor_tiers:
+    - [0,         500000,    "小散",   "retail_small"]
+    - [500000,    5000000,   "中户",   "retail_mid"]
+    - [5000000,   20000000,  "大户",   "whale"]
+    - [20000000,  999999999, "超大户", "ultra_whale"]
+
+  # 各量级默认策略偏好
+  tier_strategies:
+    retail_small:
+      default_accounts: 1
+      preferred: "A_only"
+      financing_mult: 0          # 小散默认现金
+      description: "单账户甲组，摸一手或甲尾"
+    retail_mid:
+      default_accounts: 2
+      preferred: "multi_A"
+      financing_mult: 10         # 中户可用孖展
+      description: "多账户甲组矩阵，孖展放大"
+    whale:
+      default_accounts: 3
+      preferred: "multi_A_plus_B"
+      financing_mult: 10
+      description: "多账户甲头 + 乙组双打"
+    ultra_whale:
+      default_accounts: 5
+      preferred: "AB_dual"
+      financing_mult: 10
+      description: "甲乙双打 + 多账户矩阵 + 孖展优化"
+
+  # 预期首日涨幅与认购倍数的映射（策略引擎复用）
+  # [倍数下限, 倍数上限, 预期涨幅%]
+  expected_return_by_mult:
+    - [300, 99999, 30]
+    - [100, 300,   20]
+    - [50,  100,   12]
+    - [20,  50,     8]
+    - [10,  20,     5]
+    - [5,   10,     2]
+    - [0,   5,     -2]

@@ -133,45 +133,107 @@ class Scorer:
         )
 
     def _generate_sell_timing(self, data: IPOData, report: FinalReport) -> SellTimingAdvice:
-        """基于市值、认购倍数和综合评分生成卖出时机建议。"""
+        """基于市值、认购倍数和综合评分生成卖出时机建议。
+
+        v5.0 升级：引入赛道热度因子
+        回测发现：
+          - 热门赛道(AI/半导体) + 极端超购 → 首日全天上涨概率高
+          - 传统赛道 + 极端超购 → 暗盘/首日即卖（后续衰减快）
+          - 微小盘(<3亿): 暗盘卖最优
+          - 大盘(30-100亿): 持有到 day3 最优
+        """
         timing_cfg = self.config.get("sell_timing", {})
-        small_cap = timing_cfg.get("small_cap_threshold", 5000)
-        large_cap = timing_cfg.get("large_cap_threshold", 30000)
         strategies = timing_cfg.get("strategies", {})
 
         market_cap = data.valuation.market_cap or 0
+        offer_size = data.underwriting.offer_size or 0
         sub_mult = data.subscription.public_subscription_mult or 0
         total_score = report.total_score
 
-        # 决策逻辑
-        if market_cap < small_cap and sub_mult >= 30:
+        offer_size_hkb = offer_size / 100  # 百万→亿港元
+
+        # v5.0: 赛道热度分级
+        track = data.company.sub_industry or data.company.industry or ""
+        HOT_TRACKS = {"AI", "人工智能", "AI视觉", "医疗AI", "大模型", "AIGC",
+                      "智能驾驶", "碳化硅", "SiC", "半导体", "芯片"}
+        WARM_TRACKS = {"机器人", "新能源", "光伏", "储能", "创新药", "生物科技"}
+
+        is_hot = any(kw in track for kw in HOT_TRACKS)
+        is_warm = any(kw in track for kw in WARM_TRACKS)
+
+        # 决策树（基于回测验证的最优退出时点）
+        if offer_size_hkb > 0 and offer_size_hkb < 3:
             strat_key = "quick_flip"
-            rationale = f"小市值(HK${market_cap:.0f}M) + 高认购({sub_mult:.0f}x)，适合速战速决"
-            confidence = "high"
-        elif market_cap < small_cap:
-            strat_key = "quick_flip"
-            rationale = f"小市值(HK${market_cap:.0f}M)，流动性有限，建议尽快获利了结"
-            confidence = "medium"
-        elif market_cap > large_cap and total_score >= 75:
-            strat_key = "medium_hold"
-            rationale = f"大市值(HK${market_cap:.0f}M) + 高评分({total_score:.0f})，基本面支撑中线持有"
-            confidence = "high" if total_score >= 80 else "medium"
-        elif market_cap > large_cap:
-            strat_key = "short_hold"
-            rationale = f"大市值(HK${market_cap:.0f}M)，建议短线观察后决定"
-            confidence = "medium"
-        elif sub_mult >= 100:
-            strat_key = "quick_flip"
-            rationale = f"超高认购({sub_mult:.0f}x)，首日溢价可期但后续动能衰减快"
-            confidence = "high"
-        elif total_score >= 70:
-            strat_key = "short_hold"
-            rationale = f"综合评分较高({total_score:.0f})，可适当短线持有"
-            confidence = "medium"
+            rationale = (f"微小盘(募资{offer_size_hkb:.1f}亿)，回测显示暗盘即卖期望最高。"
+                        f"超购{sub_mult:.0f}x" + ("，炒作风险大" if sub_mult > 2000 else ""))
+            confidence = "high" if sub_mult >= 100 else "medium"
+        elif offer_size_hkb < 10:
+            if sub_mult >= 500:
+                if is_hot:
+                    # v5.0: 热门赛道小盘+高超购 → 可持有到首日收盘
+                    strat_key = "short_hold"
+                    rationale = f"小盘(募资{offer_size_hkb:.1f}亿) + 高认购({sub_mult:.0f}x) + 热门赛道({track})，散户FOMO驱动首日全天上涨，建议尾盘卖出"
+                    confidence = "medium"
+                else:
+                    strat_key = "quick_flip"
+                    rationale = f"小盘(募资{offer_size_hkb:.1f}亿) + 高认购({sub_mult:.0f}x)，首日即卖锁定利润"
+                    confidence = "high"
+            else:
+                strat_key = "quick_flip"
+                rationale = f"小盘(募资{offer_size_hkb:.1f}亿)，流动性有限，建议首日获利了结"
+                confidence = "medium"
+        elif offer_size_hkb < 30:
+            if sub_mult >= 500 and total_score >= 65:
+                strat_key = "short_hold"
+                rationale = f"中盘(募资{offer_size_hkb:.1f}亿) + 高认购+高评分，可持有到 Day3"
+                confidence = "high"
+            elif total_score >= 70:
+                strat_key = "short_hold"
+                rationale = f"中盘(募资{offer_size_hkb:.1f}亿)，评分{total_score:.0f}分较好，适当短持"
+                confidence = "medium"
+            else:
+                strat_key = "quick_flip"
+                rationale = f"中盘(募资{offer_size_hkb:.1f}亿)，评分一般，建议首日卖出"
+                confidence = "medium"
+        elif offer_size_hkb < 100:
+            if total_score >= 75:
+                strat_key = "medium_hold"
+                rationale = f"大盘(募资{offer_size_hkb:.1f}亿) + 高评分({total_score:.0f})，回测显示持有到 Day3-5 最优"
+                confidence = "high" if total_score >= 80 else "medium"
+            else:
+                strat_key = "short_hold"
+                rationale = f"大盘(募资{offer_size_hkb:.1f}亿)，建议短线观察 Day1-3 后决定"
+                confidence = "medium"
         else:
+            if total_score >= 70:
+                strat_key = "medium_hold"
+                rationale = f"超大盘(募资{offer_size_hkb:.1f}亿)，机构定价充分，可中线持有 Day3-5"
+                confidence = "medium"
+            else:
+                strat_key = "short_hold"
+                rationale = f"超大盘(募资{offer_size_hkb:.1f}亿)，收益空间有限，Day1-3 择机卖出"
+                confidence = "low"
+
+        # 超购特殊修正（v5.0: 引入赛道热度豁免）
+        if sub_mult < 20 and strat_key != "quick_flip":
             strat_key = "quick_flip"
-            rationale = f"综合评分一般({total_score:.0f})，建议首日获利即走"
-            confidence = "low"
+            rationale = f"认购不足20倍({sub_mult:.0f}x)，回测期望为负，建议尽快卖出"
+            confidence = "medium"
+        elif sub_mult >= 5000:
+            if is_hot:
+                # v5.0 核心改动：热门赛道+极端超购 → 不降级为 quick_flip
+                strat_key = "short_hold"
+                rationale = (f"极端超购({sub_mult:.0f}x) + 热门赛道({track})，"
+                            f"散户FOMO可能推动首日全天上涨，建议尾盘附近卖出")
+                confidence = "medium"
+            elif is_warm:
+                strat_key = "quick_flip"
+                rationale = f"极端超购({sub_mult:.0f}x) + 温热赛道({track})，首日开盘即卖"
+                confidence = "high"
+            else:
+                strat_key = "quick_flip"
+                rationale = f"极端超购({sub_mult:.0f}x)，暗盘/首日炒作见顶概率高，速战速决"
+                confidence = "high"
 
         strat = strategies.get(strat_key, {})
 

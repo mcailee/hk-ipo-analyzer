@@ -275,6 +275,120 @@
   </div>
   {% endif %}
 
+  <!-- 打新策略推荐（P4 新增）-->
+  {% if strategy %}
+  <div class="section" style="border-left: 4px solid #00b894;">
+    <h2>📊 打新策略推荐</h2>
+
+    <!-- 投资者画像 & 推荐策略 -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+      <div style="background: #f0fff4; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">投资者画像</div>
+        <div style="font-size: 20px; font-weight: 700; color: #00b894;">{{ strategy.investor_tier_label }}</div>
+        <div style="font-size: 13px; color: #999; margin-top: 4px;">HK${{ "{:,.0f}".format(strategy.total_capital) }} / {{ strategy.num_accounts }} 账户</div>
+      </div>
+      <div style="background: #f0f4ff; padding: 16px; border-radius: 8px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">推荐策略</div>
+        <div style="font-size: 20px; font-weight: 700; color: #0984e3;">{{ strategy.strategy_label }}</div>
+        <div style="font-size: 13px; color: #999; margin-top: 4px;">{{ strategy.strategy_rationale }}</div>
+      </div>
+    </div>
+
+    <!-- 甲/乙组中签率 -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+      {% if strategy.group_a_one_hand_rate is not none %}
+      <div style="background: #fffbf0; padding: 12px 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666;">甲组一手中签率</div>
+        <div style="font-size: 22px; font-weight: 700; color: #e17055;">{{ "%.1f"|format(strategy.group_a_one_hand_rate) }}%</div>
+      </div>
+      {% endif %}
+      {% if strategy.group_b_alloc_rate is not none %}
+      <div style="background: #fffbf0; padding: 12px 16px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 13px; color: #666;">乙组预估中签率</div>
+        <div style="font-size: 22px; font-weight: 700; color: #e17055;">{{ "%.2f"|format(strategy.group_b_alloc_rate) }}%</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- 各账户明细 -->
+    <div style="margin-top: 16px;">
+      <table>
+        <thead>
+          <tr>
+            <th>账户</th>
+            <th>组别</th>
+            <th>融资方式</th>
+            <th>认购手数</th>
+            <th>自有资金</th>
+            <th>融资成本</th>
+            <th>预期中签</th>
+            <th>预期净收益</th>
+            <th>ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for acct in strategy.accounts %}
+          <tr>
+            <td>{{ acct.account_id }}</td>
+            <td><strong>{{ acct.group }}</strong></td>
+            <td>{{ acct.financing_label }}</td>
+            <td>{{ acct.hands }} 手</td>
+            <td>HK${{ "{:,.0f}".format(acct.own_capital) }}</td>
+            <td>HK${{ "{:,.0f}".format(acct.financing_cost) }}</td>
+            <td>{{ "%.1f"|format(acct.winning_hands) }} 手</td>
+            <td style="color: {{ '#00b894' if acct.net_profit > 0 else '#d63031' }}; font-weight: 600;">
+              HK${{ "{:,.0f}".format(acct.net_profit) }}
+            </td>
+            <td>{{ "%.2f"|format(acct.roi) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 汇总指标 -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px;">
+      <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12px; color: #666;">总自有资金</div>
+        <div style="font-size: 18px; font-weight: 700;">HK${{ "{:,.0f}".format(strategy.total_own_capital) }}</div>
+      </div>
+      <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12px; color: #666;">总融资成本</div>
+        <div style="font-size: 18px; font-weight: 700; color: #e17055;">HK${{ "{:,.0f}".format(strategy.total_financing_cost) }}</div>
+      </div>
+      <div style="background: {{ '#f0fff4' if strategy.total_net_profit > 0 else '#fff5f5' }}; padding: 12px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12px; color: #666;">预期净收益</div>
+        <div style="font-size: 18px; font-weight: 700; color: {{ '#00b894' if strategy.total_net_profit > 0 else '#d63031' }};">HK${{ "{:,.0f}".format(strategy.total_net_profit) }}</div>
+      </div>
+      <div style="background: #f0f4ff; padding: 12px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12px; color: #666;">年化资金效率</div>
+        <div style="font-size: 18px; font-weight: 700; color: #6c5ce7;">{{ "%.1f"|format(strategy.annualized_roi) }}%</div>
+      </div>
+    </div>
+
+    <!-- 风控信息 -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+      <div style="background: #fff5f5; padding: 12px 16px; border-radius: 8px;">
+        <div style="font-size: 12px; color: #666;">盈亏平衡涨幅</div>
+        <div style="font-size: 16px; font-weight: 600; color: #d63031;">{{ "%.2f"|format(strategy.breakeven_return) }}%</div>
+      </div>
+      <div style="background: #fff5f5; padding: 12px 16px; border-radius: 8px;">
+        <div style="font-size: 12px; color: #666;">最大亏损情景</div>
+        <div style="font-size: 16px; font-weight: 600; color: #d63031;">HK${{ "{:,.0f}".format(strategy.max_loss) }}</div>
+      </div>
+    </div>
+
+    {% if strategy.methodology %}
+    <div style="margin-top: 12px; font-size: 12px; color: #999;">
+      {{ strategy.methodology }}
+    </div>
+    {% endif %}
+    <div style="margin-top: 8px; font-size: 12px; color: #999;">
+      ⚠️ 策略推荐基于当前认购数据和历史经验，不构成投资建议。实际分配取决于交易所机制和市场情况。
+    </div>
+  </div>
+  {% endif %}
+
   <!-- 分析摘要 -->
   <div class="section">
     <h2>📝 分析摘要</h2>

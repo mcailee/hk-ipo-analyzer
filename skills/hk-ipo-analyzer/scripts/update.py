@@ -61,6 +61,10 @@ from pathlib import Path
 @click.option("--batch-total", type=int, default=None, help="同批次新股总数")
 # ── 输出 ──
 @click.option("--output", default=None, help="输出目录（需与 Phase1 一致）")
+# ── P4: 打新策略引擎参数 ──
+@click.option("--total-capital", type=float, default=None, help="可用总资金(港元)")
+@click.option("--num-accounts", type=int, default=None, help="可用证券账户数量")
+@click.option("--financing-mult", type=float, default=None, help="融资倍数(0=现金,10=10倍孖展)")
 def update(stock_code, public_mult, intl_mult, clawback, concurrent,
            break_rate, allocation_rate, mechanism,
            mech_b_price_pos, mech_b_inst_orders, mech_b_retail_mult,
@@ -69,7 +73,7 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
            grey_market_price, grey_market_volume, grey_market_turnover, grey_market_source,
            a_stock_code, a_stock_price, ah_premium, a_share_pe,
            batch_break_rate, batch_avg_return, batch_avg_mult, batch_total,
-           output):
+           output, total_capital, num_accounts, financing_mult):
     """港股 IPO 打新分析（Phase 2 — 认购期更新）。
 
     STOCK_CODE: 港股股票代码
@@ -353,6 +357,46 @@ def update(stock_code, public_mult, intl_mult, clawback, concurrent,
             console.print(f"  每手预期盈利: HK${allot.expected_profit_per_hand:,.0f}")
         if allot.capital_efficiency is not None:
             console.print(f"  资金效率(年化): {allot.capital_efficiency:.1f}%")
+
+    # 打新策略推荐（P4 新增）
+    if total_capital is not None and total_capital > 0:
+        try:
+            from utils.strategy import StrategyEngine
+            engine = StrategyEngine(config)
+            report.strategy = engine.recommend(
+                data,
+                total_capital=total_capital,
+                num_accounts=num_accounts or 1,
+                financing_mult=financing_mult or 0,
+            )
+            strat = report.strategy
+            if strat and strat.recommended_strategy:
+                console.print()
+                console.print("[bold green]📊 打新策略推荐[/bold green]")
+                console.print(f"  投资者画像: {strat.investor_tier_label} (资金 HK${strat.total_capital:,.0f})")
+                console.print(f"  推荐策略: [bold]{strat.strategy_label}[/bold]")
+                console.print(f"  策略理由: {strat.strategy_rationale}")
+                console.print()
+                # 各账户明细
+                for acct in strat.accounts:
+                    g_label = "甲组" if acct.group == "A" else "乙组"
+                    fin_label = f" ({acct.financing_mult:.0f}倍孖展)" if acct.financing_mult > 0 else " (现金)"
+                    console.print(
+                        f"  账户{acct.account_id} [{g_label}]{fin_label}: "
+                        f"{acct.subscription_hands}手 | 自有 HK${acct.own_capital:,.0f} | "
+                        f"利息 HK${acct.financing_cost:,.0f} | "
+                        f"预期中签 {acct.expected_winning_hands:.1f}手 | "
+                        f"预期净收益 HK${acct.expected_net_profit:,.0f}"
+                    )
+                console.print()
+                console.print(f"  [bold]总计[/bold]: 自有资金 HK${strat.total_own_capital:,.0f} | "
+                             f"融资成本 HK${strat.total_financing_cost:,.0f} | "
+                             f"预期净收益 HK${strat.total_expected_net_profit:,.0f}")
+                console.print(f"  综合回报率: {strat.overall_roi:.2f}% | 年化: {strat.capital_efficiency_annualized:.1f}%")
+                console.print(f"  盈亏平衡涨幅: {strat.breakeven_return:.2f}% | 最大亏损情景: HK${strat.max_loss_scenario:,.0f}")
+                console.print(f"  [dim]{strat.methodology}[/dim]")
+        except Exception as e:
+            logger.warning(f"策略引擎异常: {e}")
 
     try:
         chart_path = generate_radar_chart(report, out_dir)

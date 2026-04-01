@@ -195,6 +195,43 @@ def print_report(report: FinalReport):
         if allot_parts:
             console.print(Panel("\n".join(allot_parts), title="🎯 中签率估算", border_style="yellow"))
 
+    # ── 打新策略推荐（P4 新增）──
+    if report.strategy and report.strategy.recommended_strategy:
+        strat = report.strategy
+        strat_parts = []
+        strat_parts.append(f"  投资者画像: [bold]{strat.investor_tier_label}[/bold] (HK${strat.total_capital:,.0f} / {strat.num_accounts}账户)")
+        strat_parts.append(f"  推荐策略: [bold green]{strat.strategy_label}[/bold green]")
+        strat_parts.append(f"  策略理由: {strat.strategy_rationale}")
+        strat_parts.append("")
+
+        # 甲乙组分配模拟
+        if strat.group_a_sim and strat.group_a_sim.one_hand_rate is not None:
+            strat_parts.append(f"  甲组一手中签率: [bold cyan]{strat.group_a_sim.one_hand_rate:.1f}%[/bold cyan]")
+        if strat.group_b_sim and strat.group_b_sim.allocation_rate is not None:
+            strat_parts.append(f"  乙组预估中签率: [bold cyan]{strat.group_b_sim.allocation_rate:.2f}%[/bold cyan]")
+        strat_parts.append("")
+
+        # 各账户明细
+        for acct in strat.accounts:
+            g = "甲" if acct.group == "A" else "乙"
+            fin = f" {acct.financing_mult:.0f}x孖展" if acct.financing_mult > 0 else " 现金"
+            color = "green" if acct.expected_net_profit > 0 else "red"
+            strat_parts.append(
+                f"  账户{acct.account_id}[{g}组{fin}]: {acct.subscription_hands}手 → "
+                f"中签{acct.expected_winning_hands:.1f}手 → "
+                f"[{color}]净收益 HK${acct.expected_net_profit:,.0f}[/{color}]"
+            )
+        strat_parts.append("")
+
+        # 汇总
+        profit_color = "green" if strat.total_expected_net_profit > 0 else "red"
+        strat_parts.append(f"  自有资金: HK${strat.total_own_capital:,.0f}  融资成本: HK${strat.total_financing_cost:,.0f}")
+        strat_parts.append(f"  预期净收益: [{profit_color}]HK${strat.total_expected_net_profit:,.0f}[/{profit_color}]  回报率: {strat.overall_roi:.2f}%  年化: {strat.capital_efficiency_annualized:.1f}%")
+        strat_parts.append(f"  盈亏平衡: {strat.breakeven_return:.2f}%  最大亏损: HK${strat.max_loss_scenario:,.0f}")
+        strat_parts.append(f"  [dim]{strat.methodology}[/dim]")
+
+        console.print(Panel("\n".join(strat_parts), title="📊 打新策略推荐", border_style="green"))
+
     # ── 摘要 ──
     console.print(Panel(report.summary, title="📝 分析摘要", border_style="blue"))
     console.rule(style="dim")
