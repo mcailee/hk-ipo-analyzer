@@ -152,6 +152,13 @@ ipo_data = [
     {"name": "飞速创新", "code": "03355", "date": "2026-03-23", "subscription_mult": 650.0, "day1_return": 13.46, "fundraising": 17.0, "has_cornerstone": True, "category": "科技", "dark_return": 46.39, "day3_return": 15.0, "day5_return": 10.0, "is_18c": False},
     {"name": "凯乐士科技", "code": "02729", "date": "2026-03-24", "subscription_mult": 2154.0, "day1_return": 84.27, "fundraising": 6.0, "has_cornerstone": True, "category": "机器人", "dark_return": 83.19, "day3_return": 90.0, "day5_return": 85.0, "is_18c": False},
     {"name": "泽景股份", "code": "02632", "date": "2026-03-24", "subscription_mult": 85.0, "day1_return": -36.92, "fundraising": 7.2, "has_cornerstone": True, "category": "汽车", "dark_return": 12.67, "day3_return": -30.0, "day5_return": -25.0, "is_18c": False},
+    {"name": "同仁堂医养", "code": "02667", "date": "2026-03-27", "subscription_mult": 285.0, "day1_return": 12.5, "fundraising": 8.5, "has_cornerstone": True, "category": "医疗", "dark_return": 15.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
+    {"name": "华沿机器人", "code": "01021", "date": "2026-03-30", "subscription_mult": 5059.0, "day1_return": 8.24, "fundraising": 14.78, "has_cornerstone": True, "category": "机器人", "dark_return": 5.35, "day3_return": None, "day5_return": None, "is_18c": True},
+    {"name": "德适-B", "code": "02526", "date": "2026-03-30", "subscription_mult": 1073.0, "day1_return": 111.72, "fundraising": 7.92, "has_cornerstone": False, "category": "医疗AI", "dark_return": 72.02, "day3_return": None, "day5_return": None, "is_18c": True},
+    {"name": "瀚天天成", "code": "02726", "date": "2026-03-30", "subscription_mult": 332.0, "day1_return": 40.0, "fundraising": 16.5, "has_cornerstone": True, "category": "半导体", "dark_return": 44.0, "day3_return": None, "day5_return": None, "is_18c": False},
+    {"name": "极视角", "code": "06636", "date": "2026-03-30", "subscription_mult": 4591.0, "day1_return": 150.0, "fundraising": 4.8, "has_cornerstone": False, "category": "AI", "dark_return": 117.5, "day3_return": None, "day5_return": None, "is_18c": True},
+    {"name": "傅里叶", "code": "03625", "date": "2026-03-31", "subscription_mult": 3118.0, "day1_return": 100.0, "fundraising": 5.0, "has_cornerstone": False, "category": "半导体", "dark_return": 111.5, "day3_return": None, "day5_return": None, "is_18c": True},
+    {"name": "铜师傅", "code": "00664", "date": "2026-03-31", "subscription_mult": 44.6, "day1_return": -49.17, "fundraising": 4.44, "has_cornerstone": False, "category": "消费", "dark_return": -20.83, "day3_return": None, "day5_return": None, "is_18c": False},
 ]
 
 # ============================================

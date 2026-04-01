@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""港股打新甜蜜区间分析器 - 分析引擎模块
-包含：基础统计、手写矩阵运算、OLS回归、信息增益、多因子评分、卖出时点分析、季节性分析
+"""港股打新甜蜜区间分析器 - 分析引擎模块 V3.5 (Ensemble 混合版)
+包含：基础统计、手写矩阵运算、Ridge回归、信息增益、多因子评分、卖出时点分析、
+     季节性分析、相似度匹配(小样本保护)、Ensemble混合、暗盘联动修正
+
+V3.5 改进：
+  - 小样本降级保护：二值维度(基石/18C)动态权重缩放
+  - 行业分层相似度：科技/医药/消费/工业/金融 5 大近亲组
+  - 相似度+区间 Ensemble 混合：避免单一方法的极端失真
+  - 18C 惩罚行业差异化：医药-10%/非医药-4%/有基石-2%
 """
 import math
 
@@ -494,17 +501,25 @@ def score_ipo(ipo, weights, cat_encoding, norm_stats=None, extra=None):
             penalty = (sub_norm - 0.9) * 0.5  # 0-5%
             score = score * (1 - penalty)
 
-    # [V3.4] 18C 风险惩罚
-    # 18C无基石 = 高风险组合（翰思艾泰-B模式：超购3000x但暗盘+2%→首日-46%）
-    # 18C有基石 = 风险可控但仍需注意（大多数18C医药B类有基石且表现不错）
+    # [V3.5] 18C 风险惩罚（行业差异化）
+    # V3.4一刀切(-8%无基石/-3%有基石)对非医药18C过度惩罚
+    # 事实：医药18C无基石3只全崩(翰思艾泰+2%→-46%/华芢-25%/拔康-32%)
+    #       但科技18C表现差异大(MiniMax+109%/傅里叶+111.5%暗盘)
+    # V3.5: 按行业差异化惩罚力度
     is_18c = ipo.get("is_18c", False)
     if is_18c:
+        category = ipo.get("category", "其他")
+        is_med_group = _get_industry_group(category) == "医药"
         if not ipo.get("has_cornerstone", False):
-            # 无基石18C：强惩罚 8%（翰思艾泰、拔康视云、华芢生物均为此类）
-            score = score * 0.92
+            if is_med_group:
+                # 医药18C无基石：强惩罚 10%（三只全崩）
+                score = score * 0.90
+            else:
+                # 非医药18C无基石：轻惩罚 4%（样本少但不全是负面）
+                score = score * 0.96
         else:
-            # 有基石18C：轻微惩罚 3%（不确定性仍高于普通股）
-            score = score * 0.97
+            # 有基石18C：统一轻惩罚 2%（有基石保护，风险可控）
+            score = score * 0.98
 
     return min(max(score * 100, 0), 100)
 
@@ -677,29 +692,37 @@ def analyze_single_stock(target, data, weights, cat_encoding, norm_stats=None, e
 
 def predict_selling_strategy(params, data, weights, cat_encoding, market_state=None, model_source=None, norm_stats=None, extra=None):
     """基于历史同类群数据输出卖出策略
-    [V3.4] 增强点:
-      1. 多维相似度匹配替代粗粒度区间匹配
-      2. 18C 风险标记与独立分析
-      3. 暗盘联动修正（输入暗盘涨幅后修正首日/Day3/Day5预期）
+    [V3.5] 增强点:
+      1. 相似度+区间混合集成(Ensemble)：避免小样本相似度匹配失真
+      2. 小样本降级保护：二值维度权重自动缩放
+      3. 行业差异化18C分析
+      4. 暗盘联动修正（输入暗盘涨幅后修正首日/Day3/Day5预期）
     """
     score = score_ipo(params, weights, cat_encoding, norm_stats, extra)
     tier = get_tier(score)
     is_18c = params.get("is_18c", False)
 
-    # [V3.4] 多维相似度匹配
+    # ======== [V3.5] Ensemble: 相似度匹配 + 区间匹配混合 ========
+    # 1. 相似度匹配（V3.4/V3.5增强版，含小样本保护）
     sim_peers = compute_similarity_peers(params, data, top_n=12)
-    # 取 top 8 作为核心同类群
-    tier_peers = [sp["stock"] for sp in sim_peers[:8]] if sim_peers else []
+    sim_stocks = [sp["stock"] for sp in sim_peers[:8]] if sim_peers else []
 
-    # 兜底：如果相似度匹配结果太少（<3只），回退到区间匹配
-    if len(tier_peers) < 3:
-        sub_range = get_sub_range_label(params)
-        tier_peers = [d for d in data if get_sub_range_label(d) == sub_range]
-        tier_peers_filtered = [d for d in tier_peers if d.get("_tier") == tier]
-        if len(tier_peers_filtered) >= 3:
-            tier_peers = tier_peers_filtered
-
+    # 2. 区间匹配（V3.1-V3.3的稳健方法）
     sub_range = get_sub_range_label(params)
+    range_stocks = [d for d in data if get_sub_range_label(d) == sub_range]
+
+    # 3. 计算 Ensemble 混合权重
+    # 原则：相似度匹配同类群越"集中于小特征组"，区间匹配权重越高
+    ensemble_info = _compute_ensemble_weights(params, sim_peers[:8], range_stocks, data)
+    alpha_sim = ensemble_info["alpha_sim"]   # 相似度匹配权重
+    alpha_range = ensemble_info["alpha_range"]  # 区间匹配权重
+
+    # 4. 构造 Ensemble 同类群
+    # 去重合并两组同类群，按加权贡献排序
+    ensemble_peers = _build_ensemble_peers(sim_stocks, range_stocks, alpha_sim, alpha_range)
+
+    # 最终使用的同类群
+    tier_peers = ensemble_peers
 
     # 各时点统计
     tp_stats = analyze_selling_timepoints(tier_peers)
@@ -715,7 +738,6 @@ def predict_selling_strategy(params, data, weights, cat_encoding, market_state=N
     # [V3.4] 18C 独立分析
     is_18c_analysis = None
     if is_18c:
-        # 从全量数据中筛选 18C 股票做独立统计
         all_18c = [d for d in data if d.get("is_18c", False)]
         is_18c_with_cs = [d for d in all_18c if d.get("has_cornerstone", False)]
         is_18c_no_cs = [d for d in all_18c if not d.get("has_cornerstone", False)]
@@ -727,7 +749,7 @@ def predict_selling_strategy(params, data, weights, cat_encoding, market_state=N
             "dark_stats": calc_stats(all_18c, "dark_return") if all_18c else None,
         }
 
-    # [V3.4] 暗盘联动修正
+    # [V3.4/V3.5] 暗盘联动修正（使用Ensemble同类群）
     dark_feedback = None
     if params.get("dark_return") is not None:
         dark_feedback = compute_dark_feedback(params, tier_peers, data)
@@ -737,13 +759,123 @@ def predict_selling_strategy(params, data, weights, cat_encoding, market_state=N
         "peer_count": len(tier_peers), "sub_range": sub_range,
         "tp_stats": tp_stats, "best_tp": best_tp, "dark_stats": dark_stats,
         "peers": tier_peers[:8],
-        "sim_peers": sim_peers[:8] if sim_peers else [],  # V3.4: 含相似度分数
+        "sim_peers": sim_peers[:8] if sim_peers else [],
         "market_state": market_state,
         "model_source": model_source,
         "is_18c": is_18c,
-        "is_18c_analysis": is_18c_analysis,  # V3.4
-        "dark_feedback": dark_feedback,  # V3.4
+        "is_18c_analysis": is_18c_analysis,
+        "dark_feedback": dark_feedback,
+        "ensemble_info": ensemble_info,  # V3.5: Ensemble混合信息
     }
+
+
+# ============================================
+# [V3.5] Ensemble: 相似度+区间混合引擎
+# ============================================
+
+def _compute_ensemble_weights(target, sim_peers_top, range_stocks, all_data):
+    """计算相似度匹配与区间匹配的 Ensemble 混合权重
+
+    原则:
+      - 基础权重 α_sim=0.5, α_range=0.5（平等起步）
+      - 当相似度Top8集中于小特征组(如18C无基石<5只)时，降低α_sim
+      - 当区间样本充足(>10只)且方差低时，提高α_range
+      - 当相似度Top3来自同一极端小组时，触发降级保护
+
+    Returns:
+        dict: {"alpha_sim": 0.4, "alpha_range": 0.6, "reason": "...", ...}
+    """
+    n_range = len(range_stocks)
+    n_sim = len(sim_peers_top)
+
+    # 检测相似度Top3是否来自同一"极端小组"
+    # 定义：二值维度(cs, 18c)完全一致的特征组 < 5只
+    if n_sim >= 3:
+        top3_stocks = [sp["stock"] for sp in sim_peers_top[:3]]
+        # 检查top3是否共享相同的 cs + 18c 组合
+        t_cs_val = target.get("has_cornerstone", False)
+        t_18c_val = target.get("is_18c", False)
+        same_combo = all(
+            d.get("has_cornerstone", False) == t_cs_val and d.get("is_18c", False) == t_18c_val
+            for d in top3_stocks
+        )
+        combo_count = sum(1 for d in all_data
+                         if d.get("has_cornerstone", False) == t_cs_val
+                         and d.get("is_18c", False) == t_18c_val)
+        small_group_trap = same_combo and combo_count < 5
+    else:
+        small_group_trap = False
+        combo_count = 0
+
+    # 计算权重
+    if small_group_trap:
+        # 小样本陷阱检测触发: 大幅偏向区间匹配
+        alpha_sim = 0.20
+        alpha_range = 0.80
+        reason = f"⚠️ 小样本降级保护: 相似度Top3均来自仅{combo_count}只的特征组，以区间匹配为主"
+    elif n_range >= 10 and n_sim >= 5:
+        # 两种方法都有充足数据: 均衡混合
+        alpha_sim = 0.50
+        alpha_range = 0.50
+        reason = f"均衡混合: 相似度{n_sim}只 + 区间{n_range}只"
+    elif n_range >= 10 and n_sim < 5:
+        # 区间充足、相似度不足
+        alpha_sim = 0.30
+        alpha_range = 0.70
+        reason = f"区间优先: 相似度仅{n_sim}只，区间{n_range}只"
+    elif n_range < 5:
+        # 区间也不够（冷门区间）
+        alpha_sim = 0.70
+        alpha_range = 0.30
+        reason = f"相似度优先: 区间仅{n_range}只"
+    else:
+        alpha_sim = 0.45
+        alpha_range = 0.55
+        reason = f"默认: 相似度{n_sim}只 + 区间{n_range}只"
+
+    return {
+        "alpha_sim": alpha_sim,
+        "alpha_range": alpha_range,
+        "reason": reason,
+        "small_group_trap": small_group_trap,
+        "combo_count": combo_count,
+        "n_sim": n_sim,
+        "n_range": n_range,
+    }
+
+
+def _build_ensemble_peers(sim_stocks, range_stocks, alpha_sim, alpha_range):
+    """构造 Ensemble 混合同类群
+
+    策略:
+      1. 两组按权重分配名额: sim取 round(8*α_sim), range取 round(8*α_range)
+      2. 去重（同一只股票只保留一次）
+      3. 最终取 top 8-12只
+    """
+    n_total = 10  # Ensemble总名额
+    n_sim = max(2, min(8, round(n_total * alpha_sim)))
+    n_range = n_total - n_sim
+
+    # 从相似度组取前n_sim只
+    selected_codes = set()
+    ensemble = []
+
+    for d in sim_stocks[:n_sim]:
+        code = d.get("code", "")
+        if code not in selected_codes:
+            selected_codes.add(code)
+            ensemble.append(d)
+
+    # 从区间组取前n_range只(去重)
+    for d in range_stocks[:n_range + 4]:  # 多取几只以防去重后不够
+        code = d.get("code", "")
+        if code not in selected_codes:
+            selected_codes.add(code)
+            ensemble.append(d)
+            if len(ensemble) >= n_total:
+                break
+
+    return ensemble
 
 
 # ============================================
@@ -751,17 +883,22 @@ def predict_selling_strategy(params, data, weights, cat_encoding, market_state=N
 # ============================================
 
 def compute_similarity_peers(target, data, top_n=12):
-    """多维余弦相似度匹配：找最相似的历史同类群
+    """[V3.5] 多维相似度匹配引擎（带小样本降级保护）
 
-    维度权重：
-      - 超购倍数(log): 35% — 最核心的分档因子
-      - 基石投资者:     20% — 有无基石影响巨大
-      - 行业:          15% — 同行业更有参考价值
+    改进点 (V3.5):
+      1. 二值维度动态权重缩放：当特征组样本<5只时自动降低权重
+      2. 行业相似度分层：科技/半导体/AI归为近亲组(0.7)，医药/生物归为近亲组(0.7)
+      3. 超购维度权重提升，避免被二值维度淹没
+
+    维度基础权重：
+      - 超购倍数(log): 40% — 最核心的分档因子（V3.4: 35%→V3.5: 40%）
+      - 基石投资者:     15% — 动态缩放（V3.4: 20%→V3.5: 15%基础）
+      - 行业:          20% — 分层相似度（V3.4: 15%→V3.5: 20%）
       - 募资规模(log):  15% — 影响流动性和市场容量
-      - 18C机制:       15% — 18C与非18C走势差异显著
+      - 18C机制:       10% — 动态缩放（V3.4: 15%→V3.5: 10%基础）
 
     Returns:
-        list[dict]: [{"stock": d, "similarity": 0.95, "breakdown": {...}}, ...]
+        list[dict]: [{"stock": d, "similarity": 0.95, "breakdown": {...}, "weights_used": {...}}, ...]
     """
     results = []
     t_sub = math.log(max(target.get("subscription_mult", 1), 1))
@@ -776,6 +913,51 @@ def compute_similarity_peers(target, data, top_n=12):
     sub_range_val = max(all_subs) - min(all_subs) if all_subs else 1
     fund_range_val = max(all_funds) - min(all_funds) if all_funds else 1
 
+    # ========== [V3.5] 小样本降级保护 ==========
+    # 统计二值维度的特征组大小
+    n_same_cs = sum(1 for d in data if (d.get("has_cornerstone", False) == target.get("has_cornerstone", False)))
+    n_same_18c = sum(1 for d in data if (d.get("is_18c", False) == target.get("is_18c", False)))
+    # 交叉组: 同时满足 cs + 18c
+    n_cross = sum(1 for d in data
+                  if (d.get("has_cornerstone", False) == target.get("has_cornerstone", False))
+                  and (d.get("is_18c", False) == target.get("is_18c", False)))
+
+    # 动态权重缩放: eff_weight = base × min(1.0, n_group / 5)
+    # 当组内样本<5只时，线性衰减权重，避免小样本陷阱
+    MIN_GROUP_FOR_FULL_WEIGHT = 5
+    cs_scale = min(1.0, n_same_cs / MIN_GROUP_FOR_FULL_WEIGHT)
+    c18_scale = min(1.0, n_same_18c / MIN_GROUP_FOR_FULL_WEIGHT)
+    # 交叉组更严格: 如果 cs+18c 组合很少，进一步缩放
+    cross_scale = min(1.0, n_cross / MIN_GROUP_FOR_FULL_WEIGHT)
+    joint_scale = min(cs_scale, c18_scale, cross_scale)
+
+    # 基础权重
+    w_sub_base = 0.40
+    w_cs_base = 0.15
+    w_cat_base = 0.20
+    w_fund_base = 0.15
+    w_18c_base = 0.10
+
+    # 应用缩放
+    w_cs = w_cs_base * joint_scale
+    w_18c = w_18c_base * joint_scale
+    # 释放的权重回流到超购和行业（最稳健的连续维度）
+    released = (w_cs_base - w_cs) + (w_18c_base - w_18c)
+    w_sub = w_sub_base + released * 0.6   # 60%回流超购
+    w_cat = w_cat_base + released * 0.25   # 25%回流行业
+    w_fund = w_fund_base + released * 0.15 # 15%回流募资
+
+    # 归一化确保总和=1
+    w_total = w_sub + w_cs + w_cat + w_fund + w_18c
+    w_sub /= w_total
+    w_cs /= w_total
+    w_cat /= w_total
+    w_fund /= w_total
+    w_18c /= w_total
+
+    weights_used = {"sub": w_sub, "cs": w_cs, "cat": w_cat, "fund": w_fund, "is_18c": w_18c,
+                    "cs_scale": cs_scale, "c18_scale": c18_scale, "cross_scale": cross_scale}
+
     for d in data:
         if d.get("code") == target.get("code"):
             continue
@@ -788,18 +970,19 @@ def compute_similarity_peers(target, data, top_n=12):
 
         # 各维度相似度 (0-1, 1=完全相同)
         sim_sub = 1.0 - abs(t_sub - d_sub) / sub_range_val if sub_range_val > 0 else 1.0
-        sim_cs = 1.0 if t_cs == d_cs else 0.0
-        sim_cat = 1.0 if t_cat == d_cat else 0.3  # 不同行业给 0.3 基底（不是完全无参考价值）
+        sim_cs = 1.0 if t_cs == d_cs else 0.3  # [V3.5] 不同基石状态给0.3(V3.4是0.0)
+        # [V3.5] 行业分层相似度
+        sim_cat = _industry_similarity(t_cat, d_cat)
         sim_fund = 1.0 - abs(t_fund - d_fund) / fund_range_val if fund_range_val > 0 else 1.0
-        sim_18c = 1.0 if t_18c == d_18c else 0.2  # 18C/非18C差异很大
+        sim_18c = 1.0 if t_18c == d_18c else 0.3  # [V3.5] 不同18C状态给0.3(V3.4是0.2)
 
         # 加权综合相似度
         total_sim = (
-            sim_sub * 0.35 +
-            sim_cs * 0.20 +
-            sim_cat * 0.15 +
-            sim_fund * 0.15 +
-            sim_18c * 0.15
+            sim_sub * w_sub +
+            sim_cs * w_cs +
+            sim_cat * w_cat +
+            sim_fund * w_fund +
+            sim_18c * w_18c
         )
 
         results.append({
@@ -808,11 +991,44 @@ def compute_similarity_peers(target, data, top_n=12):
             "breakdown": {
                 "sub": sim_sub, "cs": sim_cs, "cat": sim_cat,
                 "fund": sim_fund, "is_18c": sim_18c,
-            }
+            },
+            "weights_used": weights_used,
         })
 
     results.sort(key=lambda x: -x["similarity"])
     return results[:top_n]
+
+
+# ============================================
+# [V3.5] 行业分层相似度
+# ============================================
+
+# 行业近亲组：组内相似度 0.7，组外 0.3
+_INDUSTRY_GROUPS = {
+    "科技": ["半导体", "AI", "科技", "SaaS", "软件", "芯片", "互联网", "云计算", "数据"],
+    "医药": ["医药", "生物科技", "创新药", "医疗器械", "CXO", "生物"],
+    "消费": ["消费", "餐饮", "零售", "电商", "食品", "服装"],
+    "工业": ["机器人", "新能源", "汽车", "制造", "工业", "材料"],
+    "金融": ["金融", "银行", "保险", "券商", "支付"],
+}
+
+def _get_industry_group(category):
+    """获取行业所属的近亲组"""
+    for group_name, keywords in _INDUSTRY_GROUPS.items():
+        for kw in keywords:
+            if kw in category:
+                return group_name
+    return None  # 未匹配到任何组
+
+def _industry_similarity(cat_a, cat_b):
+    """[V3.5] 行业分层相似度：同行业=1.0, 同组近亲=0.7, 其他=0.3"""
+    if cat_a == cat_b:
+        return 1.0
+    group_a = _get_industry_group(cat_a)
+    group_b = _get_industry_group(cat_b)
+    if group_a and group_b and group_a == group_b:
+        return 0.7  # 同组近亲（如半导体↔AI, 医药↔生物科技）
+    return 0.3  # 跨组
 
 
 # ============================================

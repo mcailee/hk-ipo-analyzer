@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""港股打新甜蜜区间分析器 - 主入口 (V3.4 精准匹配与暗盘联动版)
+"""港股打新甜蜜区间分析器 - 主入口 (V3.5 Ensemble 混合版)
 Usage:
   python3 analyze.py                                    # 全量回测报告
   python3 analyze.py --code 02097                       # 已上市股票回测
@@ -72,7 +72,7 @@ def resolve_market_state(args_state, date_str="未上市"):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="港股打新甜蜜区间分析器 V3.4（精准匹配与暗盘联动版）")
+    parser = argparse.ArgumentParser(description="港股打新甜蜜区间分析器 V3.5（Ensemble混合版）")
     parser.add_argument("--code", type=str, help="港股代码")
     parser.add_argument("--subscription-mult", type=float, help="公开认购倍数(未上市新股)")
     parser.add_argument("--has-cornerstone", action="store_true", help="是否有基石投资者")
