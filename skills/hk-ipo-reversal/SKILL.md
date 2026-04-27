@@ -28,7 +28,23 @@ description: "港股新股暗盘反转猎手 V2（期望偏差版）。分析暗
 
 ## Prerequisites
 
-**无需安装任何依赖。** 纯 Python 3 标准库，零外部依赖。
+**核心运行无需安装任何依赖。** 纯 Python 3 标准库，零外部依赖。
+
+**可选增强：** 如安装了 Node.js（v18+），将自动通过 [skill:腾讯自选股数据工具]（westock-data）获取实时 K 线数据和恒指月度涨跌幅。未安装时静默 fallback 到内置历史数据。数据获取层共享自 hk-ipo-sweet-spot 的 fetcher.py。
+
+### 数据获取优先级
+
+同 hk-ipo-sweet-spot 的数据获取优先级规则。分析时优先使用 westock-data 获取 K 线、资金流向、财务报表等数据。
+
+### 数据更新命令
+
+批量从 westock-data 拉取最新数据更新 data.py（含 day2/day7/day10/换手率等增强字段）：
+```bash
+python3 {SKILL_DIR}/scripts/update_data.py                # 更新所有缺失数据
+python3 {SKILL_DIR}/scripts/update_data.py --dry-run      # 仅预览
+python3 {SKILL_DIR}/scripts/update_data.py --hsi-only     # 仅更新恒指
+python3 {SKILL_DIR}/scripts/update_data.py --code 01021   # 更新指定股票
+```
 
 ## Workflow
 

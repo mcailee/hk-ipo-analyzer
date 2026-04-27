@@ -7,6 +7,7 @@ Usage:
   python3 analyze.py --code 03625 --subscription-mult 3118 --category 半导体 --fundraising 5 --is-18c  # 18C新股策略
   python3 analyze.py --code 03625 --subscription-mult 3118 --category 半导体 --fundraising 5 --is-18c --dark-return -5  # 暗盘联动
   python3 analyze.py --market-state bull                # 指定市场状态（bull/bear/neutral/auto）
+  python3 analyze.py --no-fetch                         # 纯离线模式（不调用 westock-data）
 """
 import sys, os, argparse
 
@@ -14,6 +15,34 @@ import sys, os, argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from data import ipo_data, hsi_monthly
+
+# westock-data 数据获取层（可选，不可用时静默 fallback）
+try:
+    from fetcher import (
+        is_available as fetcher_available,
+        fetch_hsi_monthly as fetcher_hsi,
+        compute_day_returns as fetcher_day_returns,
+        compute_latest_price as fetcher_latest,
+        fetch_profile as fetcher_profile,
+        fetch_hkfund as fetcher_fund,
+        fetch_kline as fetcher_kline,
+    )
+    _HAS_FETCHER = True
+except ImportError:
+    _HAS_FETCHER = False
+
+# V4.0: 市场情绪修正模块（可选）
+try:
+    from market_sentiment import (
+        compute_market_adjustment,
+        apply_adjustment,
+        format_adjustment_summary,
+        compute_ah_premium_factor,
+    )
+    _HAS_SENTIMENT = True
+except ImportError:
+    _HAS_SENTIMENT = False
+    _HAS_SENTIMENT = False
 from engine import (
     analyze_by_subscription_range, analyze_by_cornerstone,
     analyze_by_category, analyze_fundraising_vs_return,
@@ -71,8 +100,73 @@ def resolve_market_state(args_state, date_str="未上市"):
     return get_current_market_state(hsi_monthly)
 
 
+def _enrich_stock_from_fetcher(stock):
+    """从 westock-data 补充股票缺失的 dayN 收益率和最新价格。
+    只更新值为 None 的字段，不覆盖已有数据。
+    """
+    code = stock.get("code", "")
+    day1 = stock.get("day1_return")
+    if day1 is None:
+        return  # 连首日数据都没有，无法算发行价
+
+    # 需要知道发行价才能从 K 线算 dayN 回报
+    # 反推发行价: day1_return = (close - ipo_price) / ipo_price * 100
+    # 但我们没有发行价...用 profile 的 listing date + K 线反推
+    # 更直接：如果 day3/day5 是 None 才需要补充
+    need_fill = any(stock.get(k) is None for k in ["day3_return", "day5_return"])
+    if not need_fill:
+        return
+
+    try:
+        # 获取 K 线
+        kline = None
+        if _HAS_FETCHER:
+            from fetcher import fetch_kline
+            kline = fetch_kline(code, period="day", count=15)
+
+        if not kline or len(kline) < 2:
+            return
+
+        # 按日期排序（升序）
+        kline_sorted = sorted(kline, key=lambda x: x.get("date", ""))
+        listing_date = stock.get("date", "")
+        if listing_date:
+            kline_sorted = [k for k in kline_sorted if k.get("date", "") >= listing_date]
+
+        if not kline_sorted:
+            return
+
+        # 用首日收盘价反推发行价
+        first_close = kline_sorted[0].get("last")
+        if first_close and day1 is not None and day1 != -100:
+            ipo_price = first_close / (1 + day1 / 100)
+        else:
+            return
+
+        # 计算 dayN 收益率
+        day_map = {3: "day3_return", 5: "day5_return"}
+        filled = []
+        for idx, row in enumerate(kline_sorted):
+            trading_day = idx + 1
+            if trading_day in day_map:
+                key = day_map[trading_day]
+                if stock.get(key) is None:
+                    close = row.get("last")
+                    if close and ipo_price > 0:
+                        stock[key] = round((close - ipo_price) / ipo_price * 100, 2)
+                        filled.append(key)
+            if trading_day >= 5:
+                break
+
+        if filled:
+            print(f"   📡 westock-data 补充: {', '.join(filled)}")
+
+    except Exception:
+        pass  # 静默失败
+
+
 def main():
-    parser = argparse.ArgumentParser(description="港股打新甜蜜区间分析器 V3.5（Ensemble混合版）")
+    parser = argparse.ArgumentParser(description="港股打新甜蜜区间分析器 V4.0（市场情绪修正版）")
     parser.add_argument("--code", type=str, help="港股代码")
     parser.add_argument("--subscription-mult", type=float, help="公开认购倍数(未上市新股)")
     parser.add_argument("--has-cornerstone", action="store_true", help="是否有基石投资者")
@@ -84,10 +178,39 @@ def main():
     parser.add_argument("--output", type=str, help="输出目录")
     parser.add_argument("--market-state", type=str, default="auto",
                         help="市场状态: bull/bear/neutral/auto (默认auto自动判定)")
+    parser.add_argument("--no-fetch", action="store_true",
+                        help="纯离线模式，不调用 westock-data 获取实时数据")
+    parser.add_argument("--ah-a-code", type=str,
+                        help="A股代码（AH股专用，如 sz300476），自动获取A股数据计算AH溢价和联动因子")
+    parser.add_argument("--ah-a-price", type=float,
+                        help="A股当前价格（人民币，手动指定，优先于自动获取）")
+    parser.add_argument("--ipo-price", type=float,
+                        help="H股发行价（港元，AH溢价因子需要）")
+    parser.add_argument("--subscription-start", type=str,
+                        help="招股开始日期 YYYY-MM-DD（用于A股联动因子计算）")
     args = parser.parse_args()
 
     output_dir = args.output or os.getcwd()
     os.makedirs(output_dir, exist_ok=True)
+
+    # ======== westock-data 数据增强 ========
+    use_fetcher = _HAS_FETCHER and not args.no_fetch
+    if use_fetcher and fetcher_available():
+        # 更新恒指月度数据
+        fresh_hsi = fetcher_hsi(months=24)
+        if fresh_hsi:
+            updated = 0
+            for ym, val in fresh_hsi.items():
+                if ym not in hsi_monthly:
+                    hsi_monthly[ym] = val
+                    updated += 1
+            if updated:
+                print(f"📡 westock-data: 更新 {updated} 个月恒指数据")
+    else:
+        if not args.no_fetch and not _HAS_FETCHER:
+            pass  # 静默，不打扰用户
+        elif args.no_fetch:
+            print("📴 离线模式：跳过 westock-data 数据获取")
 
     # ======== 预计算：条件子模型 ========
     print("🔧 训练条件子模型...")
@@ -130,6 +253,10 @@ def main():
         if stock:
             # ======== 模式2: 已上市股票回测 ========
             print(f"\n📈 分析已上市股票: {stock['name']} ({stock['code']})")
+
+            # [westock-data] 补充缺失的 dayN 收益率
+            if use_fetcher and fetcher_available():
+                _enrich_stock_from_fetcher(stock)
             
             # 确定该股的市场状态
             ms = resolve_market_state(args.market_state, stock["date"])
@@ -185,6 +312,65 @@ def main():
                                               market_state=ms, model_source=model_source,
                                               norm_stats=sns, extra=sxtra)
             result["model_warning"] = sw_warning
+
+            # ======== [V4.0] 市场情绪修正 ========
+            market_adj = None
+            if _HAS_SENTIMENT:
+                # 获取AH股数据
+                a_price_cny = args.ah_a_price
+                a_kline = None
+                hsi_kline = None
+
+                if use_fetcher and fetcher_available():
+                    # 自动获取A股价格（如果提供了A股代码）
+                    if args.ah_a_code and not a_price_cny:
+                        from fetcher import _run_cli, parse_markdown_table
+                        output = _run_cli(["kline", args.ah_a_code, "day", "20"])
+                        a_kline_data = parse_markdown_table(output)
+                        if a_kline_data:
+                            a_kline = a_kline_data
+                            a_sorted = sorted(a_kline_data, key=lambda x: x.get("date", ""))
+                            a_price_cny = a_sorted[-1].get("last") if a_sorted else None
+                    elif args.ah_a_code:
+                        from fetcher import _run_cli, parse_markdown_table
+                        output = _run_cli(["kline", args.ah_a_code, "day", "20"])
+                        a_kline = parse_markdown_table(output)
+
+                    # 获取恒指短期K线
+                    from fetcher import fetch_kline as _fkl
+                    hsi_kline = _fkl("hkHSI", period="day", count=10)
+
+                market_adj = compute_market_adjustment(
+                    ipo_data,
+                    h_ipo_price=args.ipo_price,
+                    a_share_price_cny=a_price_cny,
+                    a_kline=a_kline,
+                    hsi_kline=hsi_kline,
+                    subscription_start=getattr(args, 'subscription_start', None),
+                    target_category=args.category,
+                    subscription_mult=args.subscription_mult,
+                    dark_return=args.dark_return,
+                    fundraising=args.fundraising,
+                )
+
+                if market_adj:
+                    result["market_adjustment"] = market_adj
+                    adj_factor = market_adj.get("final_adjustment", 1.0)
+                    if adj_factor != 1.0:
+                        # 修正各时点预期
+                        for tp in result.get("tp_stats", []):
+                            if tp.get("avg") is not None:
+                                tp["avg_adjusted"] = round(tp["avg"] * adj_factor, 1)
+                        if result.get("best_tp") and result["best_tp"].get("expected") is not None:
+                            result["best_tp"]["expected_adjusted"] = round(result["best_tp"]["expected"] * adj_factor, 1)
+                        if result.get("dark_feedback") and result["dark_feedback"].get("corrected_day1") is not None:
+                            result["dark_feedback"]["corrected_day1_adjusted"] = round(
+                                result["dark_feedback"]["corrected_day1"] * adj_factor, 1)
+                        print(f"   📊 情绪修正系数: {adj_factor:.3f} ({'↑上调' if adj_factor > 1 else '↓下调'})")
+                    if market_adj.get("ah_premium"):
+                        ah = market_adj["ah_premium"]
+                        if ah.get("target_range"):
+                            print(f"   📊 AH折价: {ah.get('discount_pct', 0):+.1f}% → 目标区间 {ah['target_range'][0]:.0f}-{ah['target_range'][1]:.0f}")
             
             html = generate_strategy_report(result)
             out_path = os.path.join(output_dir, f"sweet_spot_{params['code']}_strategy.html")
@@ -199,7 +385,10 @@ def main():
                 df = result["dark_feedback"]
                 print(f"   暗盘联动: {df['pattern']} | 修正首日预期 {df['corrected_day1']:+.1f}%")
             if result["best_tp"]:
-                print(f"   最优卖出时点: {result['best_tp']['label']} (期望 {result['best_tp']['expected']:+.1f}%)")
+                adj_str = ""
+                if result["best_tp"].get("expected_adjusted"):
+                    adj_str = f" → 情绪修正后 {result['best_tp']['expected_adjusted']:+.1f}%"
+                print(f"   最优卖出时点: {result['best_tp']['label']} (期望 {result['best_tp']['expected']:+.1f}%{adj_str})")
     else:
         # ======== 模式1: 全量回测报告 ========
         print("\n📊 运行全量回测分析...")

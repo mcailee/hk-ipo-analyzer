@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """港股打新甜蜜区间分析器 - 数据集模块
-数据来源：东方财富、华盛通、富途牛牛、财联社等公开数据
+数据来源：东方财富、华盛通、富途牛牛、财联社等公开数据 + westock-data 自动更新
 字段说明：
   name: 证券简称 | code: 股票代码 | date: 上市日期
   subscription_mult: 公开认购倍数 | day1_return: 首日涨跌幅(%)
@@ -12,8 +12,6 @@
 """
 
 ipo_data = [
-    # ==================== 2024 H2 (7-12月) ====================
-    # 数据来源：港交所、华盛通、富途、东方财富等公开数据
     {"name": "如祺出行", "code": "09680", "date": "2024-07-10", "subscription_mult": 0.6, "day1_return": -7.0, "fundraising": 10.0, "has_cornerstone": True, "category": "科技", "dark_return": -10.0, "day3_return": -12.0, "day5_return": -15.0, "is_18c": False},
     {"name": "方舟健客", "code": "09885", "date": "2024-07-12", "subscription_mult": 5.2, "day1_return": -36.0, "fundraising": 2.5, "has_cornerstone": False, "category": "医疗", "dark_return": -30.0, "day3_return": -40.0, "day5_return": -45.0, "is_18c": False},
     {"name": "百望股份", "code": "06657", "date": "2024-07-16", "subscription_mult": 12.0, "day1_return": -18.0, "fundraising": 3.0, "has_cornerstone": True, "category": "科技", "dark_return": -15.0, "day3_return": -22.0, "day5_return": -25.0, "is_18c": False},
@@ -44,16 +42,12 @@ ipo_data = [
     {"name": "速腾聚创", "code": "02498", "date": "2024-07-05", "subscription_mult": 0.58, "day1_return": -18.0, "fundraising": 10.0, "has_cornerstone": True, "category": "自动驾驶", "dark_return": -15.0, "day3_return": -20.0, "day5_return": -22.0, "is_18c": True},
     {"name": "瑞昌国际", "code": "02564", "date": "2024-07-25", "subscription_mult": 25.0, "day1_return": 8.0, "fundraising": 1.5, "has_cornerstone": False, "category": "制造", "dark_return": 5.0, "day3_return": 10.0, "day5_return": 6.0, "is_18c": False},
     {"name": "晶泰控股-P", "code": "02228", "date": "2024-06-13", "subscription_mult": 330.0, "day1_return": 8.75, "fundraising": 8.0, "has_cornerstone": True, "category": "医药", "dark_return": 5.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": True},
-
-    # ==================== 2025 Q1 (1-3月) ====================
     {"name": "海螺材料科技", "code": "02560", "date": "2025-01-06", "subscription_mult": 3.5, "day1_return": -47.67, "fundraising": 15.0, "has_cornerstone": False, "category": "材料", "dark_return": -45.0, "day3_return": -52.0, "day5_return": -55.0, "is_18c": False},
     {"name": "布鲁可", "code": "00325", "date": "2025-01-10", "subscription_mult": 6000.0, "day1_return": 40.85, "fundraising": 18.0, "has_cornerstone": True, "category": "消费", "dark_return": 35.0, "day3_return": 52.0, "day5_return": 48.0, "is_18c": False},
     {"name": "古茗", "code": "01364", "date": "2025-02-12", "subscription_mult": 189.0, "day1_return": 17.3, "fundraising": 53.5, "has_cornerstone": True, "category": "消费", "dark_return": 15.0, "day3_return": 22.0, "day5_return": 25.0, "is_18c": False},
     {"name": "蜜雪集团", "code": "02097", "date": "2025-03-03", "subscription_mult": 5258.21, "day1_return": 43.2, "fundraising": 44.0, "has_cornerstone": True, "category": "消费", "dark_return": 26.9, "day3_return": 38.0, "day5_return": 35.0, "is_18c": False},
     {"name": "赤峰黄金", "code": "02023", "date": "2025-03-10", "subscription_mult": 25.0, "day1_return": 0.0, "fundraising": 48.0, "has_cornerstone": True, "category": "资源", "dark_return": -2.0, "day3_return": 5.0, "day5_return": 8.0, "is_18c": False},
     {"name": "南山铝业国际", "code": "01982", "date": "2025-03-25", "subscription_mult": 12.5, "day1_return": -3.2, "fundraising": 36.0, "has_cornerstone": True, "category": "材料", "dark_return": -5.0, "day3_return": 2.0, "day5_return": 10.0, "is_18c": False},
-
-    # ==================== 2025 Q2 (4-6月) ====================
     {"name": "映恩生物-B", "code": "02517", "date": "2025-04-15", "subscription_mult": 380.0, "day1_return": 116.7, "fundraising": 18.0, "has_cornerstone": True, "category": "医药", "dark_return": 95.0, "day3_return": 130.0, "day5_return": 125.0, "is_18c": True},
     {"name": "佰泽医疗", "code": "02618", "date": "2025-04-22", "subscription_mult": 310.0, "day1_return": 42.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医疗", "dark_return": 38.0, "day3_return": 50.0, "day5_return": 45.0, "is_18c": False},
     {"name": "云知声", "code": "02072", "date": "2025-04-28", "subscription_mult": 550.0, "day1_return": 44.59, "fundraising": 12.0, "has_cornerstone": True, "category": "AI", "dark_return": 40.0, "day3_return": 55.0, "day5_return": 50.0, "is_18c": False},
@@ -72,8 +66,6 @@ ipo_data = [
     {"name": "吉宏股份", "code": "06618", "date": "2025-06-10", "subscription_mult": 68.0, "day1_return": 15.0, "fundraising": 12.0, "has_cornerstone": True, "category": "消费", "dark_return": 12.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
     {"name": "周六福", "code": "02598", "date": "2025-06-16", "subscription_mult": 480.0, "day1_return": 8.0, "fundraising": 15.0, "has_cornerstone": True, "category": "消费", "dark_return": 5.0, "day3_return": 6.0, "day5_return": 3.0, "is_18c": False},
     {"name": "药捷安康-B", "code": "02617", "date": "2025-06-23", "subscription_mult": 1200.0, "day1_return": 78.71, "fundraising": 8.0, "has_cornerstone": True, "category": "医药", "dark_return": 70.0, "day3_return": 100.0, "day5_return": 120.0, "is_18c": True},
-
-    # ==================== 2025 Q3 (7-9月) ====================
     {"name": "拔康视云-B", "code": "02592", "date": "2025-07-15", "subscription_mult": 180.0, "day1_return": -39.0, "fundraising": 8.0, "has_cornerstone": False, "category": "医药", "dark_return": -32.0, "day3_return": -42.0, "day5_return": -45.0, "is_18c": True},
     {"name": "维立志博", "code": "02608", "date": "2025-08-04", "subscription_mult": 1500.0, "day1_return": 95.0, "fundraising": 4.0, "has_cornerstone": True, "category": "医药", "dark_return": 85.0, "day3_return": 110.0, "day5_return": 105.0, "is_18c": True},
     {"name": "中慧生物-B", "code": "02609", "date": "2025-08-11", "subscription_mult": 1800.0, "day1_return": 158.0, "fundraising": 5.0, "has_cornerstone": True, "category": "医药", "dark_return": 140.0, "day3_return": 170.0, "day5_return": 160.0, "is_18c": True},
@@ -85,8 +77,6 @@ ipo_data = [
     {"name": "禾赛-W", "code": "02602", "date": "2025-09-22", "subscription_mult": 620.0, "day1_return": 22.0, "fundraising": 35.0, "has_cornerstone": True, "category": "科技", "dark_return": 18.0, "day3_return": 25.0, "day5_return": 20.0, "is_18c": False},
     {"name": "奇瑞汽车", "code": "06622", "date": "2025-09-25", "subscription_mult": 55.0, "day1_return": 12.0, "fundraising": 95.0, "has_cornerstone": True, "category": "汽车", "dark_return": 8.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
     {"name": "西普尼", "code": "02583", "date": "2025-09-30", "subscription_mult": 4500.0, "day1_return": 258.1, "fundraising": 2.0, "has_cornerstone": False, "category": "消费", "dark_return": 230.0, "day3_return": 200.0, "day5_return": 160.0, "is_18c": False},
-
-    # ==================== 2025 Q4 (10-12月) ====================
     {"name": "长风药业", "code": "02652", "date": "2025-10-08", "subscription_mult": 6697.8, "day1_return": 161.0, "fundraising": 4.0, "has_cornerstone": True, "category": "医药", "dark_return": 145.0, "day3_return": 175.0, "day5_return": 165.0, "is_18c": False},
     {"name": "金叶国际集团", "code": "08549", "date": "2025-10-10", "subscription_mult": 11464.7, "day1_return": 330.0, "fundraising": 0.5, "has_cornerstone": False, "category": "消费", "dark_return": 900.0, "day3_return": 200.0, "day5_return": 100.0, "is_18c": False},
     {"name": "挚达科技", "code": "02650", "date": "2025-10-10", "subscription_mult": 5440.0, "day1_return": 192.1, "fundraising": 3.0, "has_cornerstone": True, "category": "新能源", "dark_return": 175.0, "day3_return": 180.0, "day5_return": 160.0, "is_18c": False},
@@ -117,8 +107,6 @@ ipo_data = [
     {"name": "五一视界", "code": "06651", "date": "2025-12-30", "subscription_mult": 480.0, "day1_return": 12.0, "fundraising": 7.0, "has_cornerstone": True, "category": "科技", "dark_return": 8.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
     {"name": "林清轩", "code": "02657", "date": "2025-12-30", "subscription_mult": 350.0, "day1_return": 18.0, "fundraising": 11.0, "has_cornerstone": True, "category": "消费", "dark_return": 15.0, "day3_return": 20.0, "day5_return": 16.0, "is_18c": False},
     {"name": "美联股份", "code": "02671", "date": "2025-12-30", "subscription_mult": 65.0, "day1_return": -12.0, "fundraising": 1.8, "has_cornerstone": False, "category": "服务", "dark_return": -15.0, "day3_return": -18.0, "day5_return": -20.0, "is_18c": False},
-
-    # ==================== 2026 Q1 (1-3月) ====================
     {"name": "壁仞科技", "code": "06082", "date": "2026-01-02", "subscription_mult": 2347.53, "day1_return": 75.0, "fundraising": 56.0, "has_cornerstone": True, "category": "AI", "dark_return": 79.69, "day3_return": 65.0, "day5_return": 60.0, "is_18c": False},
     {"name": "智谱", "code": "02513", "date": "2026-01-08", "subscription_mult": 1159.46, "day1_return": 38.0, "fundraising": 43.5, "has_cornerstone": True, "category": "AI", "dark_return": 32.0, "day3_return": 42.0, "day5_return": 38.0, "is_18c": False},
     {"name": "天数智芯", "code": "09903", "date": "2026-01-08", "subscription_mult": 980.0, "day1_return": 28.0, "fundraising": 37.0, "has_cornerstone": True, "category": "AI", "dark_return": 22.0, "day3_return": 30.0, "day5_return": 25.0, "is_18c": False},
@@ -153,23 +141,28 @@ ipo_data = [
     {"name": "凯乐士科技", "code": "02729", "date": "2026-03-24", "subscription_mult": 2154.0, "day1_return": 84.27, "fundraising": 6.0, "has_cornerstone": True, "category": "机器人", "dark_return": 83.19, "day3_return": 90.0, "day5_return": 85.0, "is_18c": False},
     {"name": "泽景股份", "code": "02632", "date": "2026-03-24", "subscription_mult": 85.0, "day1_return": -36.92, "fundraising": 7.2, "has_cornerstone": True, "category": "汽车", "dark_return": 12.67, "day3_return": -30.0, "day5_return": -25.0, "is_18c": False},
     {"name": "同仁堂医养", "code": "02667", "date": "2026-03-27", "subscription_mult": 285.0, "day1_return": 12.5, "fundraising": 8.5, "has_cornerstone": True, "category": "医疗", "dark_return": 15.0, "day3_return": 10.0, "day5_return": 8.0, "is_18c": False},
-    {"name": "华沿机器人", "code": "01021", "date": "2026-03-30", "subscription_mult": 5059.0, "day1_return": 8.24, "fundraising": 14.78, "has_cornerstone": True, "category": "机器人", "dark_return": 5.35, "day3_return": None, "day5_return": None, "is_18c": True},
-    {"name": "德适-B", "code": "02526", "date": "2026-03-30", "subscription_mult": 1073.0, "day1_return": 111.72, "fundraising": 7.92, "has_cornerstone": False, "category": "医疗AI", "dark_return": 72.02, "day3_return": None, "day5_return": None, "is_18c": True},
-    {"name": "瀚天天成", "code": "02726", "date": "2026-03-30", "subscription_mult": 332.0, "day1_return": 40.0, "fundraising": 16.5, "has_cornerstone": True, "category": "半导体", "dark_return": 44.0, "day3_return": None, "day5_return": None, "is_18c": False},
-    {"name": "极视角", "code": "06636", "date": "2026-03-30", "subscription_mult": 4591.0, "day1_return": 150.0, "fundraising": 4.8, "has_cornerstone": False, "category": "AI", "dark_return": 117.5, "day3_return": None, "day5_return": None, "is_18c": True},
-    {"name": "傅里叶", "code": "03625", "date": "2026-03-31", "subscription_mult": 3118.0, "day1_return": 100.0, "fundraising": 5.0, "has_cornerstone": False, "category": "半导体", "dark_return": 111.5, "day3_return": None, "day5_return": None, "is_18c": True},
-    {"name": "铜师傅", "code": "00664", "date": "2026-03-31", "subscription_mult": 44.6, "day1_return": -49.17, "fundraising": 4.44, "has_cornerstone": False, "category": "消费", "dark_return": -20.83, "day3_return": None, "day5_return": None, "is_18c": False},
+    {"name": "华沿机器人", "code": "01021", "date": "2026-03-30", "subscription_mult": 5059.0, "day1_return": 8.24, "fundraising": 14.78, "has_cornerstone": True, "category": "机器人", "dark_return": 5.35, "day3_return": 9.83, "day5_return": 3.95, "is_18c": True},
+    {"name": "德适-B", "code": "02526", "date": "2026-03-30", "subscription_mult": 1073.0, "day1_return": 111.72, "fundraising": 7.92, "has_cornerstone": False, "category": "医疗AI", "dark_return": 72.02, "day3_return": 148.69, "day5_return": 175.76, "is_18c": True},
+    {"name": "瀚天天成", "code": "02726", "date": "2026-03-30", "subscription_mult": 332.0, "day1_return": 40.0, "fundraising": 16.5, "has_cornerstone": True, "category": "半导体", "dark_return": 44.0, "day3_return": 46.66, "day5_return": 50.87, "is_18c": False},
+    {"name": "极视角", "code": "06636", "date": "2026-03-30", "subscription_mult": 4591.0, "day1_return": 150.0, "fundraising": 4.8, "has_cornerstone": False, "category": "AI", "dark_return": 117.5, "day3_return": 107.5, "day5_return": 152.5, "is_18c": True},
+    {"name": "傅里叶", "code": "03625", "date": "2026-03-31", "subscription_mult": 3118.0, "day1_return": 100.0, "fundraising": 5.0, "has_cornerstone": False, "category": "半导体", "dark_return": 111.5, "day3_return": 130.0, "day5_return": 182.25, "is_18c": True},
+    {"name": "铜师傅", "code": "00664", "date": "2026-03-31", "subscription_mult": 44.6, "day1_return": -49.17, "fundraising": 4.44, "has_cornerstone": False, "category": "消费", "dark_return": -20.83, "day3_return": -46.67, "day5_return": -55.67, "is_18c": False},
+    # ===== 2026年4月新股 =====
+    {"name": "思格新能", "code": "06656", "date": "2026-04-16", "subscription_mult": 1136.0, "day1_return": 103.42, "fundraising": 44.0, "has_cornerstone": True, "category": "新能源", "dark_return": 78.3, "day3_return": 84.3, "day5_return": 75.05, "is_18c": False},
+    {"name": "长光辰芯", "code": "03277", "date": "2026-04-17", "subscription_mult": 1154.0, "day1_return": 75.53, "fundraising": 26.0, "has_cornerstone": True, "category": "半导体", "dark_return": 71.3, "day3_return": 144.48, "day5_return": 102.48, "is_18c": False},
+    {"name": "群核科技", "code": "00068", "date": "2026-04-17", "subscription_mult": 1591.0, "day1_return": 144.09, "fundraising": 12.3, "has_cornerstone": True, "category": "AI", "dark_return": 157.2, "day3_return": 409.19, "day5_return": 298.69, "is_18c": False},
+    {"name": "胜宏科技", "code": "02476", "date": "2026-04-21", "subscription_mult": 300.0, "day1_return": 50.09, "fundraising": 175.0, "has_cornerstone": True, "category": "半导体", "dark_return": 58.7, "day3_return": 51.42, "day5_return": 46.27, "is_18c": False},
+    {"name": "华勤技术", "code": "03296", "date": "2026-04-23", "subscription_mult": 100.0, "day1_return": 13.26, "fundraising": 45.5, "has_cornerstone": True, "category": "制造", "dark_return": 21.0, "day3_return": 26.13, "day5_return": None, "is_18c": False},
 ]
 
 # ============================================
 # 恒生指数月度涨跌幅 (%)
-# 数据来源：港交所 HKEX 2024 Fact Book 及公开行情数据
+# 数据来源：港交所 HKEX 2024 Fact Book 及公开行情数据 + westock-data 自动更新
 # 用途：市场状态分类（牛/熊/震荡）
 # ============================================
 hsi_monthly = {
-    # 2024年（港交所官方数据）
     "2024-01": -1.16,
-    "2024-02": 6.20,
+    "2024-02": 6.2,
     "2024-03": 3.75,
     "2024-04": 2.98,
     "2024-05": 4.61,
@@ -180,7 +173,6 @@ hsi_monthly = {
     "2024-10": 19.13,
     "2024-11": -6.38,
     "2024-12": 3.03,
-    # 2025年
     "2025-01": -0.8,
     "2025-02": 13.4,
     "2025-03": 0.8,
@@ -193,8 +185,8 @@ hsi_monthly = {
     "2025-10": 8.2,
     "2025-11": -3.5,
     "2025-12": 2.8,
-    # 2026年
     "2026-01": 5.6,
     "2026-02": 3.2,
     "2026-03": -5.7,
+    "2026-04": 4.09,
 }

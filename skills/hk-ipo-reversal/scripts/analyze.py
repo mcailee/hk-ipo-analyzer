@@ -4,6 +4,7 @@ Usage:
   python3 analyze.py                                              # 全量偏差修正统计报告
   python3 analyze.py --code 02715                                 # 已上市股票修正回测
   python3 analyze.py --code 01021 --dark-return 5 --subscription-mult 5000 --expected-return 30  # 新股预测
+  python3 analyze.py --no-fetch                                   # 纯离线模式
 """
 import sys
 import os
@@ -11,8 +12,9 @@ import argparse
 import json
 import csv
 
-# 确保能导入同目录模块
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 确保能导入同目录模块（必须最先）
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _this_dir)
 
 from data import ipo_data, hsi_monthly
 from utils import (
@@ -26,6 +28,24 @@ from reversal_engine import (
 )
 from predictor import predict_reversal
 from report import generate_full_report, generate_single_report, generate_predict_report
+
+# 引用 sweet-spot 的 fetcher.py（共享数据获取层）— 放在自身模块之后，用 append 避免覆盖
+_sweet_spot_dir = os.path.join(_this_dir, "..", "..", "hk-ipo-sweet-spot", "scripts")
+if os.path.isdir(_sweet_spot_dir):
+    sys.path.append(os.path.abspath(_sweet_spot_dir))
+
+# westock-data 数据获取层（可选，不可用时静默 fallback）
+try:
+    from fetcher import (
+        is_available as fetcher_available,
+        fetch_hsi_monthly as fetcher_hsi,
+        fetch_kline as fetcher_kline,
+        compute_day_returns as fetcher_day_returns,
+        compute_latest_price as fetcher_latest,
+    )
+    _HAS_FETCHER = True
+except ImportError:
+    _HAS_FETCHER = False
 
 
 def find_stock(code, data):
@@ -76,10 +96,27 @@ def main():
     parser.add_argument("--expected-return", type=float, help="预期涨幅%% (可选，不指定则自动推算)")
     parser.add_argument("--output", type=str, help="输出目录")
     parser.add_argument("--no-export", action="store_true", help="不导出CSV/JSON")
+    parser.add_argument("--no-fetch", action="store_true",
+                        help="纯离线模式，不调用 westock-data 获取实时数据")
     args = parser.parse_args()
 
     output_dir = args.output or os.getcwd()
     os.makedirs(output_dir, exist_ok=True)
+
+    # ======== westock-data 数据增强 ========
+    use_fetcher = _HAS_FETCHER and not args.no_fetch
+    if use_fetcher and fetcher_available():
+        fresh_hsi = fetcher_hsi(months=24)
+        if fresh_hsi:
+            updated = 0
+            for ym, val in fresh_hsi.items():
+                if ym not in hsi_monthly:
+                    hsi_monthly[ym] = val
+                    updated += 1
+            if updated:
+                print(f"📡 westock-data: 更新 {updated} 个月恒指数据")
+    elif args.no_fetch:
+        print("📴 离线模式：跳过 westock-data 数据获取")
 
     print("🔄 港股新股暗盘反转猎手 V2 (期望偏差版)")
     print(f"📊 数据集: {len(ipo_data)} 只新股")
