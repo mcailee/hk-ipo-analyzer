@@ -43,6 +43,18 @@ try:
 except ImportError:
     _HAS_SENTIMENT = False
     _HAS_SENTIMENT = False
+
+# V4.0 P2: 基石投资者评分模块（可选）
+try:
+    from cornerstone_data import CORNERSTONE_MAP
+    from cornerstone_score import (
+        build_investor_profiles,
+        score_cornerstone_lineup,
+        format_cornerstone_summary,
+    )
+    _HAS_CORNERSTONE_SCORE = True
+except ImportError:
+    _HAS_CORNERSTONE_SCORE = False
 from engine import (
     analyze_by_subscription_range, analyze_by_cornerstone,
     analyze_by_category, analyze_fundraising_vs_return,
@@ -384,6 +396,14 @@ def main():
             if result.get("dark_feedback"):
                 df = result["dark_feedback"]
                 print(f"   暗盘联动: {df['pattern']} | 修正首日预期 {df['corrected_day1']:+.1f}%")
+            
+            # ======== [V4.0 P2] 基石阵容评分 ========
+            if _HAS_CORNERSTONE_SCORE:
+                cs_entry = CORNERSTONE_MAP.get(params["code"])
+                if cs_entry:
+                    cs_profiles = build_investor_profiles(ipo_data)
+                    cs_result = score_cornerstone_lineup(cs_entry["investors"], cs_profiles)
+                    print(format_cornerstone_summary(cs_result))
             if result["best_tp"]:
                 adj_str = ""
                 if result["best_tp"].get("expected_adjusted"):
