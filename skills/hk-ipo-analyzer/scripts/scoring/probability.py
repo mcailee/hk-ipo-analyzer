@@ -25,7 +25,7 @@ from typing import Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from models.ipo_data import IPOData, FinalReport, ProbabilityEstimate, DimensionScore
+from models.ipo_data import IPOData, FinalReport, ProbabilityEstimate, DimensionScore, CORNERSTONE_TIER_WEIGHTS
 from utils.helpers import logger
 
 
@@ -372,6 +372,7 @@ class ProbabilityPredictor:
     def _low_sub_leader_check(data: IPOData) -> float:
         """低超购但有龙头信号时的上涨概率修正值。
 
+        v5.1 升级：S/A 级基石占比高时增加信号强度。
         回测案例：瀚天天成超购51x但碳化硅龙头+基石+绿鞋，实际+35%。
         """
         mult = data.subscription.public_subscription_mult or 0
@@ -379,9 +380,33 @@ class ProbabilityPredictor:
             return 0.0  # 高超购不需要此修正
 
         leader_signals = 0
-        # 基石投资者占比 > 10%
-        if (data.cornerstone.total_ratio or 0) > 10:
+
+        # ═══ v5.1 基石质量增强的龙头信号 ═══
+        cs = data.cornerstone
+        if cs.investors:
+            quality = cs.calc_quality_scores()
+            sa_ratio = quality["sa_ratio"]
+            # S级主权基金大额占比 → 最强龙头信号
+            s_tiers = {"sovereign"}
+            s_amount = sum(inv.amount for inv in cs.investors
+                          if inv.tier in s_tiers and inv.amount)
+            offering_amount = 0.0
+            if cs.total_ratio and cs.total_ratio > 0 and cs.total_amount and cs.total_amount > 0:
+                ratio = cs.total_ratio / 100 if cs.total_ratio > 1 else cs.total_ratio
+                offering_amount = cs.total_amount / ratio if ratio > 0 else 0
+            s_ratio = s_amount / offering_amount if offering_amount > 0 else 0
+
+            if s_ratio > 0.15:
+                leader_signals += 3     # 主权基金占比>15%: 极强背书
+            elif s_ratio > 0.05 or sa_ratio > 0.20:
+                leader_signals += 2     # S级占>5% 或 S/A合计>20%: 强背书
+            elif sa_ratio > 0.10:
+                leader_signals += 1.5   # A级占>10%: 中强
+            elif (cs.total_ratio or 0) > 10:
+                leader_signals += 1     # 仅B/C级但占比>10%: 基础信号
+        elif (data.cornerstone.total_ratio or 0) > 10:
             leader_signals += 1
+
         # 有绿鞋机制
         if getattr(data.greenshoe, 'has_greenshoe', False):
             leader_signals += 1
@@ -395,7 +420,9 @@ class ProbabilityPredictor:
         if (data.financial.gross_margin or 0) > 30:
             leader_signals += 1
 
-        if leader_signals >= 3:
+        if leader_signals >= 4:
+            return 0.15   # 超强龙头信号（含主权基金重注）
+        elif leader_signals >= 3:
             return 0.12   # 强龙头信号
         elif leader_signals >= 2:
             return 0.06   # 中等信号
@@ -409,7 +436,6 @@ class ProbabilityPredictor:
         deviation = dark_return - expected_return
         """
         mult = data.subscription.public_subscription_mult
-        has_cs = bool(data.cornerstone.total_ratio and data.cornerstone.total_ratio > 0)
         fundraising = data.underwriting.offer_size
 
         if mult is None:
@@ -444,8 +470,21 @@ class ProbabilityPredictor:
         if is_18c:
             baseline += 15.0  # 18C 额外 +15pp
 
-        # 基石修正
-        cs_adj = 8.0 if has_cs else -8.0
+        # ═══ v5.1 基石质量连续修正（替代二值 cs_adj） ═══
+        cs = data.cornerstone
+        if cs.investors:
+            quality = cs.calc_quality_scores()
+            combined_quality = quality["combined"]
+            sa_ratio = quality["sa_ratio"]
+            # 连续函数：combined_quality 50 → 0, 83 → +8, 30 → -4.8
+            cs_adj = (combined_quality - 50) * 0.24
+            # 信心倍增修正：顶级机构大额认购的额外概率提升
+            if sa_ratio >= 0.20:
+                cs_adj += 3.0
+            elif sa_ratio >= 0.10:
+                cs_adj += 1.5
+        else:
+            cs_adj = -12.0  # 无基石投资者，保持惩罚
 
         # 募资规模修正
         if fundraising is not None:

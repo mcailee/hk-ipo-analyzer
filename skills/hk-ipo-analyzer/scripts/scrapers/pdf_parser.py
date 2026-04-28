@@ -213,29 +213,9 @@ class PDFParser:
                 if re.search(r"(关联|connected|相关|associated)", name, re.I):
                     inv.is_related_party = True
                     inv.tier = "related"
-                # 判断是否顶级机构（主权基金、顶级PE/VC、资管巨头）
-                top_names = [
-                    # 主权基金
-                    "GIC", "Temasek", "淡马锡", "中投", "CIC",
-                    "ADIA", "阿布扎比", "Abu Dhabi", "挪威主权", "Norges",
-                    "CPPIB", "加拿大养老金", "Canada Pension",
-                    # 顶级 PE/VC
-                    "高瓴", "Hillhouse", "红杉", "Sequoia", "KKR",
-                    "BlackRock", "贝莱德", "Carlyle", "凯雷",
-                    "Warburg Pincus", "TPG", "Apollo", "Bain Capital", "贝恩资本",
-                    "春华", "Primavera", "厚朴", "Hopu", "博裕", "Boyu",
-                    "鼎晖", "CDH", "太盟", "PAG",
-                    # 顶级资管
-                    "高盛资管", "Goldman Sachs Asset", "富达", "Fidelity",
-                    "桥水", "Bridgewater", "瑞银资管", "UBS Asset",
-                    "景林", "淡水泉", "中信资本", "CITIC Capital",
-                    # 险资/平台
-                    "平安", "Ping An", "惠理", "Value Partners",
-                ]
-                for tn in top_names:
-                    if tn.lower() in name.lower():
-                        inv.tier = "top_pe"
-                        break
+                else:
+                    # ═══ v5.1 四级基石分类 ═══
+                    inv.tier = self._classify_investor_tier(name)
                 investors.append(inv)
 
         if investors:
@@ -355,3 +335,75 @@ class PDFParser:
         # 主营业务（取前 200 字摘要）
         if len(full_text) > 50:
             data.company.main_business = full_text[:200].strip()
+
+    # ═══ v5.1 基石投资者四级分类 ═══
+
+    # S级: 主权基金
+    TIER_S_NAMES = [
+        "GIC", "Temasek", "淡马锡", "中投", "CIC",
+        "ADIA", "阿布扎比", "Abu Dhabi", "挪威主权", "Norges",
+        "CPPIB", "加拿大养老金", "Canada Pension",
+        "NBIM",  # 挪威央行投资管理
+        "QIA", "卡塔尔", "Qatar",
+        "Mubadala", "穆巴达拉",
+        "KIA", "科威特",
+        "SAFE", "外汇管理局",
+    ]
+
+    # A级: 国际顶级机构
+    TIER_A_NAMES = [
+        # 顶级 PE/VC
+        "高瓴", "Hillhouse", "红杉", "Sequoia", "KKR",
+        "BlackRock", "贝莱德", "Carlyle", "凯雷",
+        "Warburg Pincus", "华平", "TPG", "Apollo", "Bain Capital", "贝恩资本",
+        "太盟", "PAG",
+        # 顶级资管/对冲
+        "高盛", "Goldman Sachs", "富达", "Fidelity",
+        "桥水", "Bridgewater", "瑞银", "UBS",
+        "JP Morgan", "摩根大通", "Morgan Stanley", "摩根士丹利",
+        "Citadel", "城堡", "Tiger Global", "老虎",
+        "D1 Capital", "Coatue",
+        # 顶级险资
+        "平安", "Ping An",
+    ]
+
+    # B级: 国内大型机构
+    TIER_B_NAMES = [
+        # 国内大型 PE/VC
+        "春华", "Primavera", "厚朴", "Hopu", "博裕", "Boyu",
+        "鼎晖", "CDH", "CPE", "中信资本", "CITIC Capital",
+        "景林", "淡水泉", "惠理", "Value Partners",
+        # 国内大型公募/资管
+        "易方达", "E Fund", "华夏基金", "China AMC",
+        "广发基金", "GF Fund", "工银瑞信", "ICBC",
+        "富国基金", "Fullgoal", "南方基金", "China Southern",
+        "汇添富", "博时", "嘉实", "Harvest",
+        "中金", "CICC", "华泰", "Huatai",
+        "国泰君安", "Guotai Junan", "海通", "Haitong",
+        # 国内大型险资
+        "中国人寿", "China Life", "太平洋保险", "CPIC",
+        "泰康", "新华保险",
+    ]
+
+    @staticmethod
+    def _classify_investor_tier(name: str) -> str:
+        """按机构名称匹配 S/A/B/C 分级。"""
+        name_lower = name.lower()
+
+        # 优先匹配 S 级（主权基金）
+        for kw in PDFParser.TIER_S_NAMES:
+            if kw.lower() in name_lower:
+                return "sovereign"
+
+        # A 级（国际顶级）
+        for kw in PDFParser.TIER_A_NAMES:
+            if kw.lower() in name_lower:
+                return "intl_top"
+
+        # B 级（国内大型）
+        for kw in PDFParser.TIER_B_NAMES:
+            if kw.lower() in name_lower:
+                return "cn_major"
+
+        # C 级（未匹配的默认）
+        return "cn_normal"

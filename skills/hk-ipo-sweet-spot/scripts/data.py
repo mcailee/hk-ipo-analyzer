@@ -152,7 +152,9 @@ ipo_data = [
     {"name": "长光辰芯", "code": "03277", "date": "2026-04-17", "subscription_mult": 1154.0, "day1_return": 75.53, "fundraising": 26.0, "has_cornerstone": True, "category": "半导体", "dark_return": 71.3, "day3_return": 144.48, "day5_return": 102.48, "is_18c": False},
     {"name": "群核科技", "code": "00068", "date": "2026-04-17", "subscription_mult": 1591.0, "day1_return": 144.09, "fundraising": 12.3, "has_cornerstone": True, "category": "AI", "dark_return": 157.2, "day3_return": 409.19, "day5_return": 298.69, "is_18c": False},
     {"name": "胜宏科技", "code": "02476", "date": "2026-04-21", "subscription_mult": 300.0, "day1_return": 50.09, "fundraising": 175.0, "has_cornerstone": True, "category": "半导体", "dark_return": 58.7, "day3_return": 51.42, "day5_return": 46.27, "is_18c": False},
-    {"name": "华勤技术", "code": "03296", "date": "2026-04-23", "subscription_mult": 100.0, "day1_return": 13.26, "fundraising": 45.5, "has_cornerstone": True, "category": "制造", "dark_return": 21.0, "day3_return": 26.13, "day5_return": None, "is_18c": False},
+    {"name": "华勤技术", "code": "03296", "date": "2026-04-23", "subscription_mult": 100.0, "day1_return": 13.14, "fundraising": 45.5, "has_cornerstone": True, "category": "制造", "dark_return": 21.0, "day3_return": 26.0, "day5_return": None, "is_18c": False},
+    {"name": "曦智科技", "code": "01879", "date": "2026-04-28", "subscription_mult": 4405.0, "day1_return": 363.4, "fundraising": 5.88, "has_cornerstone": True, "category": "半导体", "dark_return": 351.0, "day3_return": None, "day5_return": None, "is_18c": True},
+    {"name": "迈威生物", "code": "02493", "date": "2026-04-28", "subscription_mult": 80.0, "day1_return": 1.7, "fundraising": 6.25, "has_cornerstone": True, "category": "医药", "dark_return": 2.9, "day3_return": None, "day5_return": None, "is_18c": True},
 ]
 
 # ============================================

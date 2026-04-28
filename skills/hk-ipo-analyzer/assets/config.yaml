@@ -93,13 +93,35 @@ legal_red_flags:
   criminal_case: true                     # 存在刑事诉讼
   regulatory_investigation: true          # 被监管部门立案调查
 
-# 基石投资者扣分/加分规则
+# 基石投资者评分规则 (v5.1 四级分级体系 + 信心倍增器)
 cornerstone_rules:
   high_ratio_threshold: 0.70      # 占比超 70% 扣分
   high_ratio_penalty: -15
   related_party_threshold: 0.50   # 关联方占比超 50% 扣分
   related_party_penalty: -20
-  top_investor_bonus: 15          # 顶级主权基金/PE 加分
+
+  # v5.1 四级分级权重 (S/A/B/C)
+  tier_weights:
+    sovereign: 1.0      # S级: 主权基金 (GIC/淡马锡/中投)
+    intl_top: 0.8       # A级: 国际顶级 (高瓴/贝莱德/高盛/红杉)
+    cn_major: 0.55      # B级: 国内大型 (中信资本/博裕/易方达/华夏)
+    cn_normal: 0.3      # C级: 国内普通
+    related: 0.15       # 关联方
+
+  # WQS(数量加权) vs AWQS(金额加权) 融合比例
+  wqs_awqs_ratio: 0.4   # combined = 0.4*WQS + 0.6*AWQS
+
+  # 信心倍增器: S/A 级机构占发行总额比例 → 额外加分
+  conviction_multiplier:
+    - [0.30, 12]   # SA占比 ≥30% → +12分
+    - [0.20,  8]   # SA占比 ≥20% → +8分
+    - [0.10,  4]   # SA占比 ≥10% → +4分
+    - [0.00,  0]   # SA占比 <10% → +0分
+
+  # 概率模型中信心倍增的额外修正 (pp)
+  conviction_prob_adj:
+    - [0.20, 3.0]   # SA占比 ≥20% → 额外+3pp
+    - [0.10, 1.5]   # SA占比 ≥10% → 额外+1.5pp
 
 # 行业分类关键词
 industry_keywords:

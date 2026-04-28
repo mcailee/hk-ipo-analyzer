@@ -3,9 +3,17 @@ name: hk-ipo-analyzer
 description: "港股 IPO 打新量化分析助手。输入新股代码，自动采集港交所、雪球公开数据及招股书 PDF，从 15 个维度（12 常规 + 3 条件性）进行量化评分，支持分阶段分析（招股期/认购期），支持机制 A/B 双轨定价，输出综合评分、概率预测、中签率计算、打新策略推荐（甲组/乙组分配模拟、甲乙双打、多账户矩阵、融资成本精算）、雷达图、结构化研报和投资建议。"
 ---
 
-# HK IPO Analyzer — 港股打新分析助手 (v5.0)
+# HK IPO Analyzer — 港股打新分析助手 (v5.1)
 
 Analyze Hong Kong IPO stocks with quantitative scoring across 15 dimensions (12 standard + 3 conditional). Generate comprehensive investment reports with probability predictions, allotment calculations, radar charts, structured analysis, and actionable recommendations.
+
+**v5.1 基石分级增强版 (2026-04-09):**
+- S/A/B/C 四级基石投资者分类体系（主权基金/国际顶级/国内大型/国内普通）
+- WQS(数量加权) + AWQS(金额加权) 综合质量分，替代一刀切 +15 分
+- 信心倍增器: S/A 级机构占发行额 ≥10%/20%/30% 时额外加分 +4/+8/+12
+- 概率预测: cs_adj 从二值(±8pp)升级为连续函数(-12~+12pp) + 信心倍增修正
+- 龙头修正: S 级大额占比算 3 个龙头信号，S/A 合计 >20% 算 2 个
+- PDF 解析器: 机构名单按 S/A/B/C 四级分类（~80 家机构）
 
 **v5.0 赛道增强版 (2026-03-31):**
 - P0-1 赛道概念溢价因子 (AI/半导体/18C 等 28 个赛道)

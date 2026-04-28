@@ -225,12 +225,36 @@ class ShareholderInfo:
 
 @dataclass
 class CornerstoneInvestor:
-    """单个基石投资者。"""
+    """单个基石投资者。
+
+    tier 分级体系 (v5.1):
+        - "sovereign"  : S级 — 主权基金 (GIC/淡马锡/中投/ADIA/CPPIB/挪威主权)
+        - "intl_top"   : A级 — 国际顶级机构 (高瓴/贝莱德/高盛/红杉/KKR/UBS/富达/桥水)
+        - "cn_major"   : B级 — 国内大型机构 (中信资本/博裕/景林/易方达/华夏/广发/工银/富国/CPE/春华/鼎晖)
+        - "cn_normal"  : C级 — 国内普通机构 (其他非关联方)
+        - "related"    : 关联方 (权重最低，高占比时扣分)
+
+    向后兼容映射: top_pe → intl_top, industry → cn_major, other → cn_normal
+    """
     name: str
     amount: Optional[float] = None              # 认购金额（百万港元）
     is_related_party: bool = False              # 是否关联方
-    tier: str = "other"                         # "sovereign"/"top_pe"/"industry"/"related"/"other"
+    tier: str = "cn_normal"                     # "sovereign"/"intl_top"/"cn_major"/"cn_normal"/"related"
     lockup_months: Optional[int] = None
+
+
+# v5.1 基石分级权重表（默认值，可被 config.yaml 覆盖）
+CORNERSTONE_TIER_WEIGHTS: dict[str, float] = {
+    "sovereign": 1.0,
+    "intl_top": 0.8,
+    "cn_major": 0.55,
+    "cn_normal": 0.3,
+    "related": 0.15,
+    # 向后兼容旧 tier 值
+    "top_pe": 0.8,
+    "industry": 0.55,
+    "other": 0.3,
+}
 
 
 @dataclass
@@ -239,6 +263,62 @@ class CornerstoneInfo:
     investors: list[CornerstoneInvestor] = field(default_factory=list)
     total_amount: Optional[float] = None
     total_ratio: Optional[float] = None         # 占发行规模比例 (%)
+
+    def calc_quality_scores(self, tier_weights: Optional[dict[str, float]] = None,
+                            wqs_awqs_ratio: float = 0.4) -> dict[str, float]:
+        """计算基石质量分 (v5.1)。
+
+        Returns:
+            dict with keys: wqs, awqs, combined, sa_ratio, conviction_bonus
+        """
+        weights = tier_weights or CORNERSTONE_TIER_WEIGHTS
+        investors = self.investors
+        if not investors:
+            return {"wqs": 0, "awqs": 0, "combined": 0, "sa_ratio": 0, "conviction_bonus": 0}
+
+        # WQS: 数量加权质量分 (0-100)
+        wqs = sum(weights.get(inv.tier, 0.3) for inv in investors) / len(investors) * 100
+
+        # AWQS: 金额加权质量分 (0-100)
+        total_amount = sum(inv.amount for inv in investors if inv.amount)
+        if total_amount > 0:
+            awqs = sum(weights.get(inv.tier, 0.3) * (inv.amount or 0)
+                       for inv in investors) / total_amount * 100
+        else:
+            awqs = wqs  # 无金额数据时退化为数量加权
+
+        # 综合质量分
+        combined = wqs_awqs_ratio * wqs + (1 - wqs_awqs_ratio) * awqs
+
+        # S/A 级认购占比 (用于信心倍增器)
+        sa_tiers = {"sovereign", "intl_top", "top_pe"}
+        sa_amount = sum(inv.amount for inv in investors
+                        if inv.tier in sa_tiers and inv.amount)
+        # 用 total_amount 作为分母（基石总认购额），配合 total_ratio 可推算占发行额比例
+        offering_amount = 0.0
+        if self.total_ratio and self.total_ratio > 0 and total_amount > 0:
+            # total_ratio 是基石占发行额的百分比
+            ratio = self.total_ratio / 100 if self.total_ratio > 1 else self.total_ratio
+            offering_amount = total_amount / ratio if ratio > 0 else 0
+        sa_ratio = sa_amount / offering_amount if offering_amount > 0 else 0
+
+        # 信心倍增器
+        if sa_ratio >= 0.30:
+            conviction_bonus = 12
+        elif sa_ratio >= 0.20:
+            conviction_bonus = 8
+        elif sa_ratio >= 0.10:
+            conviction_bonus = 4
+        else:
+            conviction_bonus = 0
+
+        return {
+            "wqs": round(wqs, 1),
+            "awqs": round(awqs, 1),
+            "combined": round(combined, 1),
+            "sa_ratio": round(sa_ratio, 4),
+            "conviction_bonus": conviction_bonus,
+        }
 
 
 @dataclass

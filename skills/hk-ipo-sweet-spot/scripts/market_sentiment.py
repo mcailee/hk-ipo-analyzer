@@ -416,8 +416,29 @@ def compute_market_adjustment(
     dark_return=None,
     fundraising=None,
 ):
-    """综合市场情绪修正引擎 V4.0 P2。"""
+    """综合市场情绪修正引擎 V4.0 P2。
+
+    P2改进：
+      - 超购热度衰减：低超购股的情绪/叙事修正打折
+        100x以下→0.15x, 300x→0.45x, 500x→0.65x, 1000x→0.85x, 2000x+→1.0x
+      - 防止热门市场的正向修正误伤冷门股
+    """
     is_ah = a_share_price_cny is not None and a_share_price_cny > 0
+
+    # [P2] 超购热度衰减系数
+    # 市场情绪对不同热度的股票影响程度不同：
+    #   超购越低，说明市场对该股参与度低，整体情绪传导弱
+    sub = subscription_mult or 500  # 默认中等
+    if sub >= 2000:
+        sub_heat_scale = 1.0
+    elif sub >= 500:
+        # 500→0.65, 2000→1.0, 线性插值
+        sub_heat_scale = 0.65 + 0.35 * (sub - 500) / 1500
+    elif sub >= 100:
+        # 100→0.15, 500→0.65, 线性插值
+        sub_heat_scale = 0.15 + 0.50 * (sub - 100) / 400
+    else:
+        sub_heat_scale = 0.15
 
     # 1. 计算各因子
     sentiment = compute_ipo_sentiment(ipo_data, n_recent)
@@ -478,12 +499,21 @@ def compute_market_adjustment(
         weights = {k: v / w_total for k, v in weights.items()}
 
     # 3. 加权汇总（基础因子）
+    # [P2] 情绪和叙事因子受超购热度衰减影响
     adj_parts = {}
-    adj_parts["sentiment"] = sentiment["sentiment_adj"] * weights.get("sentiment", 0)
-    adj_parts["narrative"] = (narrative["narrative_adj"] if narrative else 0) * weights.get("narrative", 0)
+    adj_parts["sentiment"] = sentiment["sentiment_adj"] * weights.get("sentiment", 0) * sub_heat_scale
+    adj_parts["narrative"] = (narrative["narrative_adj"] if narrative else 0) * weights.get("narrative", 0) * sub_heat_scale
 
     if ah_factor:
         adj_parts["ah_premium"] = ah_factor["ah_adj"] * weights.get("ah_premium", 0)
+        # [P2] AH大盘压制：募资越大，AH溢价对涨幅天花板的压制越强
+        # 统计显示低超购+大盘AH股平均首日仅+9.5%，base模型系统性高估
+        if fundraising and fundraising > 50 and sub < 500:
+            # 大盘低热度AH股：额外负修正（最多-8pp）
+            bigcap_penalty = -min(8.0, (fundraising - 50) / 20)
+            adj_parts["ah_bigcap"] = bigcap_penalty
+        else:
+            adj_parts["ah_bigcap"] = 0
     else:
         adj_parts["ah_premium"] = 0
 
@@ -525,6 +555,7 @@ def compute_market_adjustment(
     return {
         "total_adj": round(total_adj, 1),
         "is_ah": is_ah,
+        "sub_heat_scale": round(sub_heat_scale, 2),
         "factors": {
             "sentiment": sentiment,
             "narrative": narrative,
@@ -586,12 +617,17 @@ def format_adjustment_summary(market_adj):
     sign = "+" if total >= 0 else ""
     lines.append(f"📊 市场情绪修正: {sign}{total:.1f}pp (置信度: {market_adj['confidence']})")
 
+    sub_heat = market_adj.get("sub_heat_scale", 1.0)
+    if sub_heat < 1.0:
+        lines.append(f"   🌡️ 超购热度衰减: {sub_heat:.2f}x (低热度→情绪修正打折)")
+
     breakdown = market_adj.get("adj_breakdown", {})
     factor_names = {
         "sentiment": "近期新股情绪",
         "narrative": "赛道叙事溢价",
         "explosion": "超购爆发弹性",
         "ah_premium": "AH溢价",
+        "ah_bigcap": "AH大盘压制",
         "a_momentum": "A股联动",
         "hsi_momentum": "恒指动量",
     }
@@ -603,6 +639,9 @@ def format_adjustment_summary(market_adj):
             s = "+" if val >= 0 else ""
             if key == "explosion":
                 lines.append(f"   🚀 {name}: {s}{val:.1f}pp (额外叠加)")
+            elif key == "ah_bigcap":
+                if val != 0:
+                    lines.append(f"   🏗️ {name}: {val:+.1f}pp")
             else:
                 lines.append(f"   {name}: {s}{val:.1f}pp (权重{w*100:.0f}%)")
 
