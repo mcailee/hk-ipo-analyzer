@@ -352,6 +352,15 @@ def main():
                     from fetcher import fetch_kline as _fkl
                     hsi_kline = _fkl("hkHSI", period="day", count=10)
 
+                # [P2] 计算基石评分
+                cs_score_val = None
+                if _HAS_CORNERSTONE_SCORE:
+                    cs_entry = CORNERSTONE_MAP.get(params["code"])
+                    if cs_entry and cs_entry.get("investors"):
+                        cs_profiles = build_investor_profiles(ipo_data)
+                        cs_result = score_cornerstone_lineup(cs_entry["investors"], cs_profiles)
+                        cs_score_val = cs_result["cornerstone_score"]
+
                 market_adj = compute_market_adjustment(
                     ipo_data,
                     h_ipo_price=args.ipo_price,
@@ -363,6 +372,7 @@ def main():
                     subscription_mult=args.subscription_mult,
                     dark_return=args.dark_return,
                     fundraising=args.fundraising,
+                    cornerstone_score=cs_score_val,
                 )
 
                 if market_adj:

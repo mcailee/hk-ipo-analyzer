@@ -415,6 +415,7 @@ def compute_market_adjustment(
     subscription_mult=None,
     dark_return=None,
     fundraising=None,
+    cornerstone_score=None,  # [P2] 基石阵容评分(0-100)，来自cornerstone_score.py
 ):
     """综合市场情绪修正引擎 V4.0 P2。
 
@@ -545,6 +546,29 @@ def compute_market_adjustment(
         dark_crash_penalty = dark_crash["crash_penalty"]
         total_adj += dark_crash_penalty
 
+    # [P2] 因子8: 基石阵容评分修正
+    # 评分0-100映射到修正值：
+    #   100分(强基石) → +10pp
+    #   70分(中上) → +3pp  
+    #   50分(中性/未知) → 0pp
+    #   30分(弱) → -5pp
+    #   0分(割韭菜) → -15pp
+    cornerstone_adj = 0
+    if cornerstone_score is not None:
+        if cornerstone_score >= 70:
+            # 强基石：(score-50)/50 * 10，最多+10pp
+            cornerstone_adj = (cornerstone_score - 50) / 50 * 10
+        elif cornerstone_score >= 40:
+            # 中基石：微正到0
+            cornerstone_adj = (cornerstone_score - 50) / 50 * 5
+        else:
+            # 弱基石：负修正，0分→-15pp
+            cornerstone_adj = (cornerstone_score - 50) / 50 * 30
+            cornerstone_adj = max(-15.0, cornerstone_adj)
+        
+        adj_parts["cornerstone"] = round(cornerstone_adj, 1)
+        total_adj += cornerstone_adj
+
     total_adj = max(-30.0, min(80.0, total_adj))
 
     # 4. 置信度
@@ -630,6 +654,7 @@ def format_adjustment_summary(market_adj):
         "ah_bigcap": "AH大盘压制",
         "a_momentum": "A股联动",
         "hsi_momentum": "恒指动量",
+        "cornerstone": "基石阵容",
     }
 
     for key, name in factor_names.items():
@@ -642,6 +667,10 @@ def format_adjustment_summary(market_adj):
             elif key == "ah_bigcap":
                 if val != 0:
                     lines.append(f"   🏗️ {name}: {val:+.1f}pp")
+            elif key == "cornerstone":
+                if val != 0:
+                    cs_emoji = "🏛️" if val > 0 else "🚨"
+                    lines.append(f"   {cs_emoji} {name}: {val:+.1f}pp")
             else:
                 lines.append(f"   {name}: {s}{val:.1f}pp (权重{w*100:.0f}%)")
 
