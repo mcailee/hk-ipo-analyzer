@@ -212,6 +212,40 @@ CORNERSTONE_MAP = {
         "investors": ["高瓴", "CPE源峰"],
         "amount_hkd": 175000000,
     },
+
+    # ===== 表现差的票（用于割韭菜分析） =====
+    "02632": {  # 泽景股份 D1=-37%
+        "investors": ["盈科壹号", "北京高精尖"],  # 地方国资
+        "amount_hkd": 110000000,
+    },
+    "06625": {  # 小马智行 D1=-9%
+        "investors": ["Eastspring", "Ghisallo", "Athos", "Hel Ved", "Ocean Arete"],  # 对冲基金为主
+        "amount_hkd": 936000000,
+    },
+    "06629": {  # 文远知行 D1=-10% 无基石
+        "investors": [],
+        "amount_hkd": 0,
+    },
+    "06632": {  # 均胜电子 D1=-8%
+        "investors": ["宁波国资", "Anatole", "博裕"],
+        "amount_hkd": 1000000000,
+    },
+    "02715": {  # 埃斯顿 D1=-16%
+        "investors": ["嘉实基金", "亨通光电", "君宜资本", "至源控股", "海天国际", "裕祥控股", "Dream'ee"],
+        "amount_hkd": 523000000,
+    },
+    "09680": {  # 如祺出行 D1=-7%
+        "investors": ["广汽集团", "Voyager"],  # 母公司关联
+        "amount_hkd": 500000000,
+    },
+    "02533": {  # 黑芝麻智能 D1=-4%
+        "investors": ["蔚来资本", "吉利", "博世", "上汽"],  # 产业链上下游
+        "amount_hkd": 500000000,
+    },
+    "01982": {  # 南山铝业国际 D1=-3%
+        "investors": ["烟台国资", "中信金属"],  # 地方国资+产业链
+        "amount_hkd": 1800000000,
+    },
 }
 
 def get_investors(code):
